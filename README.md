@@ -44,7 +44,10 @@ Application  ──►  "miPDFConvert" printer  ──►  print port monitor (m
 ## Installation
 
 1. Install **Ghostscript** (see above).
-2. Run the installer `miPDFConvertSetup.exe`.
+2. Run the installer `miPDFConvertSetup.exe`. During setup you can optionally choose a
+   **target application** that should automatically receive the generated PDF — the selected
+   path is written to `TARGET_APPLICATION` in `miPDFConvert.dll.config` (leave it empty for a
+   *Save As* dialog; changeable later).
 3. Print to the **miPDFConvert** printer from any application.
 
 ## Configuration
