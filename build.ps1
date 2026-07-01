@@ -30,12 +30,32 @@
     oder 'v145'), falls das im Projekt eingestellte v143 (VS 2022) nicht
     installiert ist. Leer = im Projekt eingestellter Wert.
 
+.PARAMETER Sign
+    Signiert die eigenen Binaries und das Setup mit einem Code-Signing-Zertifikat
+    (Certum SimplySign) inkl. Zeitstempel. Erfordert eine verbundene SimplySign-
+    Desktop-Session. Ohne diesen Schalter wird nichts signiert.
+
+.PARAMETER SignSubject
+    Subject-Name (CN) des Zertifikats fuer 'signtool /n'. Standard: Umgebungs-
+    variable MIPDF_SIGN_SUBJECT. Wird bewusst NICHT im Skript hinterlegt, damit
+    keine persoenlichen Daten im (oeffentlichen) Repository stehen.
+
+.PARAMETER SignToolPath
+    Optionaler expliziter Pfad zu signtool.exe (sonst automatische Suche im SDK).
+
+.PARAMETER TimestampUrl
+    Zeitstempel-Server fuer die Signatur (Standard: http://time.certum.pl).
+
 .EXAMPLE
     .\build.ps1
 .EXAMPLE
     .\build.ps1 -SkipNative
 .EXAMPLE
     .\build.ps1 -PlatformToolset v144
+.EXAMPLE
+    .\build.ps1 -Sign -SignSubject "Wolfgang Mitterbucher"
+.EXAMPLE
+    $env:MIPDF_SIGN_SUBJECT = "Wolfgang Mitterbucher"; .\build.ps1 -Sign
 #>
 
 [CmdletBinding()]
@@ -44,7 +64,11 @@ param(
     [switch]$SkipNative,
     [switch]$SkipSetup,
     [string]$IsccPath,
-    [string]$PlatformToolset
+    [string]$PlatformToolset,
+    [switch]$Sign,
+    [string]$SignSubject = $env:MIPDF_SIGN_SUBJECT,
+    [string]$SignToolPath,
+    [string]$TimestampUrl = 'http://time.certum.pl'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -133,6 +157,42 @@ function Ensure-DriverFiles {
     }
 }
 
+function Get-SignTool {
+    if ($SignToolPath) {
+        if (Test-Path $SignToolPath) { return $SignToolPath }
+        throw "signtool.exe nicht gefunden unter '$SignToolPath'."
+    }
+    $cmd = Get-Command signtool.exe -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    $base = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+    if (Test-Path $base) {
+        $all = Get-ChildItem $base -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue
+        $st = $all | Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+        if (-not $st) { $st = $all | Sort-Object FullName -Descending | Select-Object -First 1 }
+        if ($st) { return $st.FullName }
+    }
+    throw 'signtool.exe nicht gefunden. Windows 10/11 SDK installieren oder -SignToolPath angeben.'
+}
+
+function Invoke-SignFiles([string[]]$files) {
+    # Signiert die uebergebenen (existierenden) Dateien mit dem Certum-Zertifikat.
+    # Der Subject-Name wird bewusst NICHT hier hinterlegt, sondern ueber -SignSubject
+    # bzw. die Umgebungsvariable MIPDF_SIGN_SUBJECT hereingereicht.
+    $existing = @($files | Where-Object { Test-Path $_ })
+    if ($existing.Count -eq 0) { return }
+    if (-not $SignSubject) {
+        throw ("Signieren angefordert (-Sign), aber kein Zertifikats-Subject gesetzt. " +
+               "Bitte -SignSubject '<Name>' angeben oder `$env:MIPDF_SIGN_SUBJECT setzen.")
+    }
+    $signtool = Get-SignTool
+    Write-Step "Signiere $($existing.Count) Datei(en) (Certum SimplySign)"
+    $signArgs = @('sign', '/tr', $TimestampUrl, '/td', 'sha256', '/fd', 'sha256', '/n', $SignSubject) + $existing
+    & $signtool @signArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "Signieren fehlgeschlagen (Exit-Code $LASTEXITCODE). Ist SimplySign Desktop verbunden und die Session freigeschaltet?"
+    }
+}
+
 # ---------------------------------------------------------------------------
 #  Projektpfade
 # ---------------------------------------------------------------------------
@@ -209,6 +269,25 @@ foreach ($proj in $appProjects) {
 }
 
 # ---------------------------------------------------------------------------
+#  3b. Optionale Code-Signatur der EIGENEN Binaries (vor dem Packen)
+#      Fremd-DLLs (log4net, Ghostscript.NET, System.*) sind bereits vom
+#      jeweiligen Hersteller signiert und werden nicht neu signiert.
+# ---------------------------------------------------------------------------
+if ($Sign) {
+    Invoke-SignFiles @(
+        (Join-Path $root 'build\publish\miPDFConvert.dll'),
+        (Join-Path $root 'build\publish\miPDFConvert.exe'),
+        (Join-Path $root 'build\publish\miPDFConvertBase.dll'),
+        (Join-Path $root 'build\publish\miPDFConvertBase.exe'),
+        (Join-Path $root 'build\publish\SetupHelper.exe'),
+        (Join-Path $root 'miPortMon\miMonitor\Release\Win32\miMonitor.dll'),
+        (Join-Path $root 'miPortMon\miMonitor\Release\Win32\miMonitorUI.dll'),
+        (Join-Path $root 'miPortMon\miMonitor\Release\x64\miMonitor.dll'),
+        (Join-Path $root 'miPortMon\miMonitor\Release\x64\miMonitorUI.dll')
+    )
+}
+
+# ---------------------------------------------------------------------------
 #  4. Inno Setup kompilieren
 # ---------------------------------------------------------------------------
 if (-not $SkipSetup) {
@@ -216,7 +295,12 @@ if (-not $SkipSetup) {
     $iscc = Find-Iscc
     Write-Host "ISCC: $iscc" -ForegroundColor DarkGray
     Write-Step 'Kompiliere Inno Setup'
-    Invoke-Checked $iscc @($issFile) 'Inno Setup'
+    # Bei -Sign wird das ISPP-Symbol SIGN definiert -> die [Setup]-Direktiven
+    # SignTool/SignedUninstaller in der .iss werden aktiv (nutzt den lokal
+    # konfigurierten Inno-Sign-Tool-Namen 'certum').
+    $isccArgs = @($issFile)
+    if ($Sign) { $isccArgs += '/DSIGN' }
+    Invoke-Checked $iscc $isccArgs 'Inno Setup'
     $output = Join-Path $root 'miPDFConvertSetup\Release\miPDFConvertSetup.exe'
     if (Test-Path $output) {
         Write-Host ''

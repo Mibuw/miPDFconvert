@@ -94,6 +94,23 @@ Useful switches: `-SkipNative` (skip the C++ projects), `-SkipSetup` (binaries o
 > local Windows driver store into `lib\miMonitor\...` automatically before packaging the
 > installer. Only the project's own `ghostpdf.ppd` is tracked in the repository.
 
+### Code signing (optional)
+
+Release builds can be Authenticode-signed; signing is **off by default**. To sign the
+project's own binaries and the installer (with timestamp):
+
+```powershell
+$env:MIPDF_SIGN_SUBJECT = "Your certificate subject (CN)"
+.\build.ps1 -Sign
+```
+
+The certificate subject is taken from `-SignSubject` or the `MIPDF_SIGN_SUBJECT`
+environment variable and is intentionally **not** stored in the repository. Signing uses
+`signtool.exe` (auto-located from the Windows SDK) and the Certum timestamp server. The
+installer and uninstaller are signed by Inno Setup through a sign tool named `certum`
+that must be configured locally (Inno Setup IDE → *Tools → Configure Sign Tools*);
+`build.ps1 -Sign` activates it by passing `/DSIGN` to ISCC.
+
 ## Logging
 
 A runtime log is written to `%ProgramData%\miPDFConvert\miPDFConvert.log`.

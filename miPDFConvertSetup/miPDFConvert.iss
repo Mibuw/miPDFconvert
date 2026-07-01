@@ -61,6 +61,15 @@ OutputDir=Release
 OutputBaseFilename=miPDFConvertSetup_{#MyAppVersion}
 ; ARM64 wird (wie beim alten Setup) ueber die x64-Treiberdateien mitbedient
 
+; Code-Signatur (nur wenn ISCC mit /DSIGN aufgerufen wird, z. B. build.ps1 -Sign).
+; 'certum' ist ein in der Inno-Setup-IDE konfigurierter Sign-Tool-Name
+; (Tools -> Configure Sign Tools). Der eigentliche signtool-Befehl inkl.
+; Zertifikats-Subject liegt dort lokal - NICHT in diesem Repository.
+#ifdef SIGN
+SignTool=certum $f
+SignedUninstaller=yes
+#endif
+
 [Languages]
 Name: "de"; MessagesFile: "compiler:Languages\German.isl"
 Name: "en"; MessagesFile: "compiler:Default.isl"
