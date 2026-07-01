@@ -1,0 +1,194 @@
+; ============================================================================
+;  miPDFConvert - Inno Setup Script
+;  Ersetzt das bisherige Visual Studio Setup-Projekt (miPDFConvertSetup.vdproj)
+;
+;  Bildet alles nach, was das alte Setup geboten hat:
+;    * Installiert die komplette Publish-Ausgabe (miPDFConvert, miPDFConvertBase,
+;      SetupHelper, Ghostscript gsdll32/64, alle Abhaengigkeiten)
+;    * Legt die Druckertreiber-Dateien unter miMonitor\x86 und miMonitor\x64 ab
+;    * Ruft SetupHelper.exe fuer Treiber-Installation und COM-Registrierung auf
+;    * Prueft die Voraussetzungen (VC++ Redistributable 14, .NET 8 Desktop Runtime)
+;    * Per-Machine Installation, Vorgaengerversionen werden ersetzt
+;
+;  Build:  ISCC.exe miPDFConvert.iss
+;          (Inno Setup 6, https://jrsoftware.org/isdl.php)
+; ============================================================================
+
+#define MyAppName        "miPDFConvert"
+#define MyAppVersion     "1.0.0"
+#define MyAppPublisher   "miPDF"
+#define MyAppURL         "https://mitterbucher.com"
+; UpgradeCode aus dem alten vdproj -> gleiche AppId sorgt fuer saubere Updates
+#define MyAppId          "{{CC40866C-933B-4003-B1D2-73B281E517F9}"
+
+; Relative Quellpfade (dieses Skript liegt in ...\miPDFConvert\miPDFConvertSetup)
+#define PublishDir       "..\build\publish"
+#define LibWin32Dir      "..\lib\miMonitor\Win32"
+#define LibWin64Dir      "..\lib\miMonitor\Win64"
+#define PortMonWin32Dir  "..\miPortMon\miMonitor\Release\Win32"
+#define PortMonWin64Dir  "..\miPortMon\miMonitor\Release\x64"
+
+; Downloadlinks fuer fehlende Voraussetzungen
+#define VCRedistUrl      "https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist#visual-studio-2015-2017-2019-and-2022"
+#define DotNetUrl        "https://dotnet.microsoft.com/download/dotnet/8.0/runtime"
+
+[Setup]
+AppId={#MyAppId}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
+AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}
+AppUpdatesURL={#MyAppURL}
+AppContact={#MyAppURL}
+VersionInfoVersion={#MyAppVersion}
+; Installation nach "Program Files (x86)\miPDF\miPDFConvert"
+; (App ist x86 -> Setup laeuft im 32-Bit-Modus, {autopf} = Program Files (x86))
+DefaultDirName={autopf}\{#MyAppPublisher}\{#MyAppName}
+DefaultGroupName={#MyAppName}
+DisableProgramGroupPage=yes
+; Per-Machine Installation, Adminrechte werden benoetigt (Treiber + COM)
+PrivilegesRequired=admin
+; Vorgaengerversion automatisch ersetzen (entspricht RemovePreviousVersions=TRUE)
+UninstallDisplayIcon={app}\miPDFConvert.ico
+UninstallDisplayName={#MyAppName}
+SetupIconFile=miPDFConvert.ico
+WizardStyle=modern
+Compression=lzma2/ultra64
+SolidCompression=yes
+OutputDir=Release
+OutputBaseFilename=miPDFConvertSetup_{#MyAppVersion}
+; ARM64 wird (wie beim alten Setup) ueber die x64-Treiberdateien mitbedient
+
+[Languages]
+Name: "de"; MessagesFile: "compiler:Languages\German.isl"
+Name: "en"; MessagesFile: "compiler:Default.isl"
+
+[Files]
+; --- Hauptanwendung: komplette Publish-Ausgabe nach {app} ---
+;     enthaelt miPDFConvert.exe, miPDFConvertBase.exe, SetupHelper.exe,
+;     gsdll32.dll, gsdll64.dll, alle abhaengigen DLLs, configs und runtimes\
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: "*.pdb"
+
+; --- Programmsymbol ---
+Source: "miPDFConvert.ico"; DestDir: "{app}"; Flags: ignoreversion
+
+; --- Druckertreiber-Dateien: 32 Bit nach {app}\miMonitor\x86 ---
+Source: "{#LibWin32Dir}\pscript5.dll";     DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
+Source: "{#LibWin32Dir}\pscript.ntf";      DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
+Source: "{#LibWin32Dir}\pscript.hlp";      DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
+Source: "{#LibWin32Dir}\ps5ui.dll";        DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
+Source: "{#LibWin32Dir}\ghostpdf.ppd";     DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
+Source: "{#PortMonWin32Dir}\miMonitor.dll";   DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
+Source: "{#PortMonWin32Dir}\miMonitorUI.dll"; DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
+
+; --- Druckertreiber-Dateien: 64 Bit nach {app}\miMonitor\x64 ---
+Source: "{#LibWin64Dir}\pscript5.dll";     DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
+Source: "{#LibWin64Dir}\pscript.ntf";      DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
+Source: "{#LibWin64Dir}\pscript.hlp";      DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
+Source: "{#LibWin64Dir}\ps5ui.dll";        DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
+Source: "{#LibWin64Dir}\ghostpdf.ppd";     DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
+Source: "{#PortMonWin64Dir}\miMonitor.dll";   DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
+Source: "{#PortMonWin64Dir}\miMonitorUI.dll"; DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
+
+[Run]
+; --- Reihenfolge wie im alten Setup (Install-Sequenz 1,2,3) ---
+; 1) evtl. vorhandenen Treiber zuerst entfernen
+Filename: "{app}\SetupHelper.exe"; Parameters: "/Driver=Remove"; \
+    StatusMsg: "Entferne vorhandenen Druckertreiber..."; Flags: runhidden waituntilterminated
+; 2) Druckertreiber installieren
+Filename: "{app}\SetupHelper.exe"; Parameters: "/Driver=Add"; \
+    StatusMsg: "Installiere Druckertreiber..."; Flags: runhidden waituntilterminated
+; 3) COM-Schnittstelle registrieren
+Filename: "{app}\SetupHelper.exe"; Parameters: "/ComInterface=Register"; \
+    StatusMsg: "Registriere COM-Schnittstelle..."; Flags: runhidden waituntilterminated
+
+[UninstallRun]
+; --- Deinstallation (vor dem Loeschen der Dateien) ---
+; Treiber entfernen
+Filename: "{app}\SetupHelper.exe"; Parameters: "/Driver=Remove"; \
+    RunOnceId: "RemoveDriver"; Flags: runhidden waituntilterminated
+; COM-Schnittstelle deregistrieren
+Filename: "{app}\SetupHelper.exe"; Parameters: "/ComInterface=Unregister"; \
+    RunOnceId: "UnregisterCom"; Flags: runhidden waituntilterminated
+
+[UninstallDelete]
+; Treiberordner restlos aufraeumen (falls SetupHelper Restdateien hinterlaesst)
+Type: filesandordirs; Name: "{app}\miMonitor"
+
+[Code]
+{ ---- Pruefung der Voraussetzungen vor der Installation ---- }
+
+function VCRedistInstalled(): Boolean;
+begin
+  // VC++ 2015-2022 Redistributable - Laufzeit-DLL pruefen.
+  // Setup laeuft 32-bit, daher wird der Systemordner auf SysWOW64 umgeleitet (x86-Runtime).
+  Result := FileExists(ExpandConstant('{sys}\vcruntime140.dll'));
+  { Zusaetzlich ueber Registry absichern (x86-Eintrag des Redist). }
+  if not Result then
+    Result := RegKeyExists(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86') or
+              RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x86');
+end;
+
+function HasDesktopRuntime8(BaseDir: String): Boolean;
+var
+  FindRec: TFindRec;
+begin
+  Result := False;
+  if DirExists(BaseDir) then
+    if FindFirst(BaseDir + '\8.*', FindRec) then
+    begin
+      Result := True;
+      FindClose(FindRec);
+    end;
+end;
+
+function DotNet8DesktopInstalled(): Boolean;
+begin
+  { .NET 8 Desktop Runtime suchen. Die x86-App benoetigt die x86-Runtime
+    (Program Files (x86)\dotnet); die x64-Runtime liegt in Program Files\dotnet. }
+  Result := HasDesktopRuntime8(ExpandConstant('{commonpf32}\dotnet\shared\Microsoft.WindowsDesktop.App'));
+  if not Result then
+    Result := HasDesktopRuntime8(ExpandConstant('{sd}\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App'));
+  { Registry-Fallback (vom .NET-Installer gesetzte InstalledVersions). }
+  if not Result then
+    Result := RegKeyExists(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\x86\sharedfx\Microsoft.WindowsDesktop.App') or
+              RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x86\sharedfx\Microsoft.WindowsDesktop.App');
+end;
+
+function InitializeSetup(): Boolean;
+var
+  ErrorCode: Integer;
+begin
+  Result := True;
+
+  { --- Visual C++ Redistributable 14 --- }
+  if not VCRedistInstalled() then
+  begin
+    if MsgBox('Zur Ausfuehrung dieses Programms wird das Visual C++ Redistributable 14 ' +
+              '(Visual Studio 2015-2022) benoetigt.' + #13#10#13#10 +
+              'Moechten Sie jetzt die Downloadseite oeffnen? ' +
+              '(Die Installation wird danach abgebrochen, damit Sie die Komponente nachinstallieren koennen.)',
+              mbConfirmation, MB_YESNO) = IDYES then
+    begin
+      ShellExec('open', '{#VCRedistUrl}', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  { --- .NET 8 Desktop Runtime --- }
+  if not DotNet8DesktopInstalled() then
+  begin
+    if MsgBox('Zur Ausfuehrung dieses Programms wird die .NET 8 Desktop Runtime benoetigt.' + #13#10#13#10 +
+              'Moechten Sie jetzt die Downloadseite oeffnen? ' +
+              '(Die Installation wird danach abgebrochen, damit Sie die Komponente nachinstallieren koennen.)',
+              mbConfirmation, MB_YESNO) = IDYES then
+    begin
+      ShellExec('open', '{#DotNetUrl}', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+      Result := False;
+      Exit;
+    end;
+  end;
+end;

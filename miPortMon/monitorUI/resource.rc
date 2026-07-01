@@ -1,0 +1,147 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+#include "windows.h"
+/////////////////////////////////////////////////////////////////////////////
+// Deutsch (Deutschland) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_DEU)
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+#pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_MONITORUI DIALOGEX 0, 0, 147, 53
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Port Configuration"
+FONT 8, "Tahoma", 0, 0, 0x1
+BEGIN
+LTEXT           "Portname:", ID_TEXT, 5, 4, 37, 8
+EDITTEXT        ID_EDTPORTNAME, 45, 2, 98, 14, ES_AUTOHSCROLL
+LTEXT           "Loglevel:", ID_TEXT, 9, 20, 31, 8
+COMBOBOX        ID_CBLOGLEVEL, 45, 18, 97, 50, CBS_DROPDOWNLIST | WS_TABSTOP
+DEFPUSHBUTTON   "Ok", IDOK, 22, 33, 60, 17
+PUSHBUTTON      "Cancel", IDCANCEL, 83, 33, 60, 17
+END
+
+IDD_ADDPORTUI DIALOGEX 0, 0, 137, 39
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "New Port"
+FONT 8, "Tahoma", 0, 0, 0x1
+BEGIN
+LTEXT           "Portname:", ID_TEXT, 4, 4, 34, 8
+EDITTEXT        ID_EDTPORTNAME, 41, 2, 91, 14, ES_AUTOHSCROLL
+DEFPUSHBUTTON   "Ok", IDOK, 11, 18, 60, 17
+PUSHBUTTON      "Cancel", IDCANCEL, 73, 18, 60, 17
+END
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+1 VERSIONINFO
+FILEVERSION 1, 2, 0, 0
+PRODUCTVERSION 1, 2, 0, 0
+FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+FILEFLAGS 0x1L
+#else
+FILEFLAGS 0x0L
+#endif
+FILEOS 0x4L
+FILETYPE 0x2L
+FILESUBTYPE 0x0L
+BEGIN
+BLOCK "StringFileInfo"
+BEGIN
+BLOCK "04090000"
+BEGIN
+VALUE "Comments", "Released under the terms of the GNU General Public License"
+VALUE "CompanyName", "Wolfgang Mitterbucher // mitterbucher.com"
+VALUE "FileDescription", "Printer port monitor UI"
+VALUE "FileVersion", "1.1.0.0"
+VALUE "InternalName", "miMonitorUI"
+VALUE "LegalCopyright", "Copyright © 2025 // Wolfgang Mitterbucher"
+VALUE "OriginalFilename", "miMonitorUI.dll"
+VALUE "ProductName", "miMonitor"
+VALUE "ProductVersion", "1.1.0.0"
+END
+END
+BLOCK "VarFileInfo"
+BEGIN
+VALUE "Translation", 0x409, 0
+END
+END
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE
+BEGIN
+"resource.h\0"
+END
+
+2 TEXTINCLUDE
+BEGIN
+"\0"
+END
+
+3 TEXTINCLUDE
+BEGIN
+"\r\n"
+"\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+IDD_MONITORUI, DIALOG
+BEGIN
+END
+
+IDD_ADDPORTUI, DIALOG
+BEGIN
+END
+END
+#endif    // APSTUDIO_INVOKED
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_MONITORUI AFX_DIALOG_LAYOUT
+BEGIN
+0
+END
+
+IDD_ADDPORTUI AFX_DIALOG_LAYOUT
+BEGIN
+0
+END
+
+#endif    // Deutsch (Deutschland) resources
+/////////////////////////////////////////////////////////////////////////////
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
