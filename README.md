@@ -25,7 +25,7 @@ Application  ──►  "miPDFConvert" printer  ──►  print port monitor (m
                                    miPDFConvert  ──►  Ghostscript  ──►  PDF
                                                         │
                         ┌───────────────────────────────┴───────────────────────────────┐
-                        ▼                                                                 ▼
+                        ▼                                                               ▼
         TARGET_APPLICATION is set:                                     TARGET_APPLICATION is empty:
         the PDF is passed to that app                                  a "Save As" dialog is shown
 ```
