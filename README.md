@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/miPDFConvert_logo.png" width="120" alt="miPDFConvert logo">
+</p>
+
 # miPDFConvert
 
 A virtual PDF printer for Windows. Install it and a new printer named **miPDFConvert**
