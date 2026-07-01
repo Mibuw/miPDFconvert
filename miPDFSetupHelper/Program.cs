@@ -107,6 +107,20 @@ namespace miMonitor.SetupHelper
                 }
             }
 
+            if (clp.HasArgument("TargetApp"))
+            {
+                showUsage = false;
+                try
+                {
+                    SetTargetApplication(clp.GetArgument("TargetApp"));
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                    Environment.ExitCode = 1;
+                }
+            }
+
             if (showUsage)
                 Usage();
         }
@@ -116,7 +130,47 @@ namespace miMonitor.SetupHelper
             Console.WriteLine("SetupHelper " + Assembly.GetExecutingAssembly().GetName().Version);
             Console.WriteLine();
             Console.WriteLine("usage:");
-            Console.WriteLine("SetupHelper.exe [/Printer=Add|Remove /Name=Printer] [/FileExtensions=Add|Remove] [/ComInterface=Register|Unregister]");
+            Console.WriteLine("SetupHelper.exe [/Driver=Add|Remove] [/Printer=Add|Remove /Name=Printer] [/ComInterface=Register|Unregister] [/TargetApp=<path>]");
+        }
+
+        /// <summary>
+        /// Writes the given target application path into the TARGET_APPLICATION appSetting of
+        /// miPDFConvert.dll.config (located next to SetupHelper.exe in the install directory).
+        /// Uses XmlDocument so the file's UTF-8 encoding, formatting and comments are preserved
+        /// and attribute values are correctly XML-escaped.
+        /// </summary>
+        private static void SetTargetApplication(string targetPath)
+        {
+            var appDir = GetApplicationDirectory();
+            var configFile = Path.Combine(appDir, "miPDFConvert.dll.config");
+            if (!File.Exists(configFile))
+            {
+                Console.WriteLine("Config file not found: " + configFile);
+                Environment.ExitCode = 1;
+                return;
+            }
+
+            var doc = new System.Xml.XmlDocument { PreserveWhitespace = true };
+            doc.Load(configFile);
+
+            var node = doc.SelectSingleNode("/configuration/appSettings/add[@key='TARGET_APPLICATION']") as System.Xml.XmlElement;
+            if (node == null)
+            {
+                var appSettings = doc.SelectSingleNode("/configuration/appSettings") as System.Xml.XmlElement;
+                if (appSettings == null)
+                {
+                    Console.WriteLine("appSettings section not found in " + configFile);
+                    Environment.ExitCode = 1;
+                    return;
+                }
+                node = doc.CreateElement("add");
+                node.SetAttribute("key", "TARGET_APPLICATION");
+                appSettings.AppendChild(node);
+            }
+            node.SetAttribute("value", targetPath ?? string.Empty);
+
+            doc.Save(configFile);
+            Console.WriteLine("TARGET_APPLICATION set to \"" + targetPath + "\".");
         }
 
         private static void RegisterComInterface()

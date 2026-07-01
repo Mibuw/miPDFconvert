@@ -69,6 +69,9 @@ file path works — for example a PDF viewer, an archiving tool, or your own app
 <add key="TARGET_APPLICATION" value="C:\Program Files\YourApp\YourApp.exe" />
 ```
 
+The **installer** also offers an optional page to pick a target application; the chosen path
+is written to this setting during installation (leave it empty for the *Save As* dialog).
+
 The target application is brought to the foreground automatically (including single-instance
 apps such as browser-based viewers). If `TARGET_APPLICATION` is empty, miPDFConvert falls
 back to a *Save As* dialog.

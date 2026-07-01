@@ -112,6 +112,9 @@ Filename: "{app}\SetupHelper.exe"; Parameters: "/Driver=Add"; \
 ; 3) COM-Schnittstelle registrieren
 Filename: "{app}\SetupHelper.exe"; Parameters: "/ComInterface=Register"; \
     StatusMsg: "Registriere COM-Schnittstelle..."; Flags: runhidden waituntilterminated
+; 4) optionale Zielanwendung in die Konfiguration schreiben
+Filename: "{app}\SetupHelper.exe"; Parameters: "/TargetApp=""{code:GetTargetApp}"""; \
+    StatusMsg: "Konfiguriere Zielanwendung..."; Check: HasTargetApp; Flags: runhidden waituntilterminated
 
 [UninstallRun]
 ; --- Deinstallation (vor dem Loeschen der Dateien) ---
@@ -127,6 +130,32 @@ Filename: "{app}\SetupHelper.exe"; Parameters: "/ComInterface=Unregister"; \
 Type: filesandordirs; Name: "{app}\miMonitor"
 
 [Code]
+
+var
+  TargetPage: TInputFileWizardPage;
+
+{ ---- Optionale Abfrage der Zielanwendung ---- }
+procedure InitializeWizard;
+begin
+  TargetPage := CreateInputFilePage(wpSelectDir,
+    'Zielanwendung',
+    'An welche Anwendung soll die erzeugte PDF automatisch uebergeben werden?',
+    'Optional: Waehlen Sie eine Anwendung, die die erzeugte PDF-Datei automatisch als Argument ' +
+    'erhaelt (z. B. einen PDF-Viewer). Lassen Sie das Feld leer, um beim Drucken stattdessen ' +
+    'einen "Speichern unter"-Dialog zu erhalten. Spaeter aenderbar in miPDFConvert.dll.config.');
+  TargetPage.Add('Zielanwendung (optional):', 'Programme (*.exe)|*.exe|Alle Dateien (*.*)|*.*', '.exe');
+end;
+
+function GetTargetApp(Param: string): string;
+begin
+  Result := Trim(TargetPage.Values[0]);
+end;
+
+function HasTargetApp: Boolean;
+begin
+  Result := Trim(TargetPage.Values[0]) <> '';
+end;
+
 { ---- Pruefung der Voraussetzungen vor der Installation ---- }
 
 function VCRedistInstalled(): Boolean;
