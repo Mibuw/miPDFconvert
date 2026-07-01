@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <StartupObject>miPDFConvertBase.Program</StartupObject>
+    <BaseOutputPath>..\build</BaseOutputPath>
+    <PlatformTarget>x86</PlatformTarget>
+    <ApplicationIcon>miPDFConvert.ico</ApplicationIcon>
+    <Copyright>Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)</Copyright>
+    <Company>Wolfgang Mitterbucher</Company>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="miPDFConvert.ico" />
+    <None Include="..\LICENSE" Link="LICENSE" Pack="true" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Common.Logging" Version="3.4.1" />
+    <PackageReference Include="Common.Logging.Core" Version="3.4.1" />
+    <PackageReference Include="log4net" Version="3.3.2" />
+  </ItemGroup>
+
+</Project>

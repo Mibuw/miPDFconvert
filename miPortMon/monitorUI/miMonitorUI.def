@@ -1,0 +1,4 @@
+LIBRARY miMonitorUI
+
+EXPORTS
+	InitializePrintMonitorUI

@@ -1,0 +1,50 @@
+# ===== Build output =====
+build/
+**/bin/
+**/obj/
+**/[Dd]ebug/
+**/[Rr]elease/
+
+# ===== Visual Studio / IDE =====
+.vs/
+*.user
+*.suo
+*.userosscache
+.idea/
+
+# ===== C/C++ build intermediates =====
+*.obj
+*.pdb
+*.ipdb
+*.iobj
+*.exp
+*.ilk
+*.idb
+*.res
+*.tlog
+*.recipe
+*.lastbuildstate
+*.log
+
+# ===== NuGet =====
+packages/
+*.nupkg
+
+# ===== Microsoft PostScript (Pscript5) driver files =====
+# Microsoft components - NOT redistributed here. build.ps1 stages them from the
+# local Windows driver store before packaging the installer. Both lower- and
+# upper-case spellings are ignored (they differ per platform folder).
+lib/miMonitor/*/pscript5.dll
+lib/miMonitor/*/ps5ui.dll
+lib/miMonitor/*/pscript.hlp
+lib/miMonitor/*/pscript.ntf
+lib/miMonitor/*/PSCRIPT5.DLL
+lib/miMonitor/*/PS5UI.DLL
+lib/miMonitor/*/PSCRIPT.HLP
+lib/miMonitor/*/PSCRIPT.NTF
+
+# ---------------------------------------------------------------------------
+# Note: the project's own ghostpdf.ppd under lib/miMonitor/* IS tracked (it is a
+# source asset, not a Microsoft file). The generated native DLLs under
+# miPortMon/**/Release/ are produced by build.ps1 and are ignored above.
+# ---------------------------------------------------------------------------
