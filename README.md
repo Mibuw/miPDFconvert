@@ -4,7 +4,7 @@
 
 # miPDFconvert
 
-[![GitHub release](https://img.shields.io/github/v/release/Mibuw/miPDFconvert)](https://github.com/Mibuw/miPDFconvert/releases/latest) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/Mibuw/miPDFconvert)](https://github.com/Mibuw/miPDFconvert/releases/latest) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE) [![winget](https://img.shields.io/winget/v/Mibuw.miPDFconvert?label=winget)](https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mibuw/miPDFconvert) [![Chocolatey](https://img.shields.io/chocolatey/v/mipdfconvert?label=chocolatey)](https://community.chocolatey.org/packages/mipdfconvert)
 
 A virtual PDF printer for Windows. Install it and a new printer named **miPDFconvert**
 appears in Windows. Anything you print to it is converted to a PDF, which is then either
