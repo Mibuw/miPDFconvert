@@ -58,8 +58,8 @@ choco install mipdfconvert
 ```
 
 > Ghostscript (32-bit) still needs to be installed separately (see [Requirements](#requirements)). Newly submitted versions can take a few days to appear while they pass winget/Chocolatey moderation.
->
-> ### Manual0
+
+### Manual
 
 1. Install **Ghostscript** (see above).
 2. Run the installer `miPDFconvertSetup.exe`. During setup you can optionally choose a
