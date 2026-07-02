@@ -1,14 +1,14 @@
 <p align="center">
-  <img src="assets/miPDFConvert_logo.png" width="120" alt="miPDFConvert logo">
+  <img src="assets/miPDFconvert_logo.png" width="120" alt="miPDFconvert logo">
 </p>
 
-# miPDFConvert
+# miPDFconvert
 
-A virtual PDF printer for Windows. Install it and a new printer named **miPDFConvert**
+A virtual PDF printer for Windows. Install it and a new printer named **miPDFconvert**
 appears in Windows. Anything you print to it is converted to a PDF, which is then either
 handed to a configurable **target application** or offered to you through a *Save As* dialog.
 
-miPDFConvert is a derivative work of [clawPDF](https://github.com/clawsoftware/clawPDF)
+miPDFconvert is a derivative work of [clawPDF](https://github.com/clawsoftware/clawPDF)
 (and, through it, [PDFCreator](https://github.com/pdfforge/PDFCreator)) and uses the
 [mfilemon](https://sourceforge.net/projects/mfilemon/) print port monitor. It is released
 under the **GNU AGPL v3** — see [Licensing](#licensing).
@@ -16,13 +16,13 @@ under the **GNU AGPL v3** — see [Licensing](#licensing).
 ## How it works
 
 ```
-Application  ──►  "miPDFConvert" printer  ──►  print port monitor (miPortMon)
+Application  ──►  "miPDFconvert" printer  ──►  print port monitor (miPortMon)
                                                         │  PostScript spool file
                                                         ▼
-                                          miPDFConvertBase (launcher)
+                                          miPDFconvertBase (launcher)
                                                         │
                                                         ▼
-                                   miPDFConvert  ──►  Ghostscript  ──►  PDF
+                                   miPDFconvert  ──►  Ghostscript  ──►  PDF
                                                         │
                         ┌───────────────────────────────┴───────────────────────────────┐
                         ▼                                                               ▼
@@ -44,15 +44,15 @@ Application  ──►  "miPDFConvert" printer  ──►  print port monitor (m
 ## Installation
 
 1. Install **Ghostscript** (see above).
-2. Run the installer `miPDFConvertSetup.exe`. During setup you can optionally choose a
+2. Run the installer `miPDFconvertSetup.exe`. During setup you can optionally choose a
    **target application** that should automatically receive the generated PDF — the selected
-   path is written to `TARGET_APPLICATION` in `miPDFConvert.dll.config` (leave it empty for a
+   path is written to `TARGET_APPLICATION` in `miPDFconvert.dll.config` (leave it empty for a
    *Save As* dialog; changeable later).
-3. Print to the **miPDFConvert** printer from any application.
+3. Print to the **miPDFconvert** printer from any application.
 
 ## Configuration
 
-Settings live in `miPDFConvert.dll.config` (next to `miPDFConvert.exe` in the install
+Settings live in `miPDFconvert.dll.config` (next to `miPDFconvert.exe` in the install
 directory), under `<appSettings>`:
 
 | Key | Default | Description |
@@ -76,7 +76,7 @@ The **installer** also offers an optional page to pick a target application; the
 is written to this setting during installation (leave it empty for the *Save As* dialog).
 
 The target application is brought to the foreground automatically (including single-instance
-apps such as browser-based viewers). If `TARGET_APPLICATION` is empty, miPDFConvert falls
+apps such as browser-based viewers). If `TARGET_APPLICATION` is empty, miPDFconvert falls
 back to a *Save As* dialog.
 
 ## Building from source
@@ -96,7 +96,7 @@ Build everything (native DLLs → SetupHelper → apps → installer) with the i
 
 Useful switches: `-SkipNative` (skip the C++ projects), `-SkipSetup` (binaries only),
 `-PlatformToolset v144` (override the C++ toolset). The finished installer is written to
-`miPDFConvertSetup\Release\miPDFConvertSetup.exe`.
+`miPDFconvertSetup\Release\miPDFconvertSetup.exe`.
 
 > **Microsoft PostScript driver files:** The virtual printer uses Microsoft's inbox
 > PostScript class driver (`pscript5.dll`, `ps5ui.dll`, `pscript.hlp`, `pscript.ntf`).
@@ -123,11 +123,11 @@ that must be configured locally (Inno Setup IDE → *Tools → Configure Sign To
 
 ## Logging
 
-A runtime log is written to `%ProgramData%\miPDFConvert\miPDFConvert.log`.
+A runtime log is written to `%ProgramData%\miPDFconvert\miPDFconvert.log`.
 
 ## Licensing
 
-miPDFConvert is licensed under the **GNU Affero General Public License v3** — see
+miPDFconvert is licensed under the **GNU Affero General Public License v3** — see
 [`LICENSE`](LICENSE). Because it combines AGPL/GPL components, the complete corresponding
 source code must be made available to recipients (including users interacting with it over
 a network, per AGPL §13).
@@ -141,7 +141,7 @@ Third-party components and their licenses are documented in
 - **log4net**, **Common.Logging** — Apache-2.0
 - **Ghostscript.Core.NET**, **System.ComponentModel** — MIT
 
-> **Note on Ghostscript:** miPDFConvert does not bundle Ghostscript; it must be installed
+> **Note on Ghostscript:** miPDFconvert does not bundle Ghostscript; it must be installed
 > separately by the user. If you choose to redistribute the Ghostscript binaries with your
 > own distribution, the AGPL (or a commercial Artifex license) applies to Ghostscript as well.
 

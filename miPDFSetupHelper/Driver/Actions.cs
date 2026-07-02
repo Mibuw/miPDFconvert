@@ -15,10 +15,10 @@ namespace miMonitor.SetupHelper.Driver
         public static bool CheckIfPrinterNotInstalled()
         {
             bool resultCode;
-            miPDFConvertInstaller installer = new miPDFConvertInstaller();
+            miPDFconvertInstaller installer = new miPDFconvertInstaller();
             try
             {
-                if (installer.IsmiPDFConvertPrinterInstalled())
+                if (installer.IsmiPDFconvertPrinterInstalled())
                     resultCode = true;
                 else
                     resultCode = false;
@@ -31,10 +31,10 @@ namespace miMonitor.SetupHelper.Driver
         public static bool AddPrinter(string name)
         {
             bool resultCode;
-            miPDFConvertInstaller installer = new miPDFConvertInstaller();
+            miPDFconvertInstaller installer = new miPDFconvertInstaller();
             try
             {
-                if (installer.AddCustommiPDFConvertPrinter(name))
+                if (installer.AddCustommiPDFconvertPrinter(name))
                 {
                     resultCode = true;
                     Spooler.stop();
@@ -51,10 +51,10 @@ namespace miMonitor.SetupHelper.Driver
         public static bool RemovePrinter(string name)
         {
             bool resultCode;
-            miPDFConvertInstaller installer = new miPDFConvertInstaller();
+            miPDFconvertInstaller installer = new miPDFconvertInstaller();
             try
             {
-                if (installer.DeleteCustommiPDFConvertPrinter(name))
+                if (installer.DeleteCustommiPDFconvertPrinter(name))
                     resultCode = true;
                 else
                     resultCode = false;
@@ -67,7 +67,7 @@ namespace miMonitor.SetupHelper.Driver
         public static bool IsRepairRequired()
         {
             var printerHelper = new PrinterHelper();
-            return !printerHelper.GetmiPDFConvertPrinters().Any();
+            return !printerHelper.GetmiPDFconvertPrinters().Any();
         }
 
         public static void WaitForPrintSpooler()
@@ -89,28 +89,28 @@ namespace miMonitor.SetupHelper.Driver
             }
         }
 
-        public static bool InstallmiPDFConvertPrinter()
+        public static bool InstallmiPDFconvertPrinter()
         {
             bool printerInstalled;
-            string miPDFConvertPath;
+            string miPDFconvertPath;
             Utilities.OsHelper osHelper = new Utilities.OsHelper();
-            miPDFConvertInstaller installer = new miPDFConvertInstaller();
+            miPDFconvertInstaller installer = new miPDFconvertInstaller();
             try
             {
                 if (Environment.Is64BitOperatingSystem && !osHelper.IsArm64())
                 {
-                    miPDFConvertPath = Path.GetDirectoryName(Application.ExecutablePath) + @"\miMonitor\x64\";
+                    miPDFconvertPath = Path.GetDirectoryName(Application.ExecutablePath) + @"\miMonitor\x64\";
                 }
                 else if (!Environment.Is64BitOperatingSystem && !osHelper.IsArm64())
                 {
-                    miPDFConvertPath = Path.GetDirectoryName(Application.ExecutablePath) + @"\miMonitor\x86\";
+                    miPDFconvertPath = Path.GetDirectoryName(Application.ExecutablePath) + @"\miMonitor\x86\";
                 }
                 else
                 {
-                    miPDFConvertPath = Path.GetDirectoryName(Application.ExecutablePath) + @"\miMonitor\x64\";
+                    miPDFconvertPath = Path.GetDirectoryName(Application.ExecutablePath) + @"\miMonitor\x64\";
                 }
 
-                if (installer.InstallmiPDFConvertPrinter(miPDFConvertPath, "miPDFConvertBase.exe"))
+                if (installer.InstallmiPDFconvertPrinter(miPDFconvertPath, "miPDFconvertBase.exe"))
                     printerInstalled = true;
                 else
                     printerInstalled = false;
@@ -120,13 +120,13 @@ namespace miMonitor.SetupHelper.Driver
             return printerInstalled;
         }
 
-        public static bool UninstallmiPDFConvertPrinter()
+        public static bool UninstallmiPDFconvertPrinter()
         {
             bool printerUninstalled;
-            miPDFConvertInstaller installer = new miPDFConvertInstaller();
+            miPDFconvertInstaller installer = new miPDFconvertInstaller();
             try
             {
-                if (installer.UninstallmiPDFConvertPrinter())
+                if (installer.UninstallmiPDFconvertPrinter())
                     printerUninstalled = true;
                 else
                     printerUninstalled = true;

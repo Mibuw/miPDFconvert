@@ -1235,7 +1235,7 @@ void CPort::SetHomeDirectory(HANDLE hToken)
 			g_pLog->Log(LOGLEVEL_ALL, L" Local Print Job");
 			WCHAR szTempDir[MAX_PATH] = { 0 };
 			wcsncpy_s(szTempDir, MAX_PATH, szHomeDirBuf, _TRUNCATE);
-			wcsncat_s(szTempDir, MAX_PATH, L"\\AppData\\Local\\Temp\\miPDFConvert\\Spool", _TRUNCATE);
+			wcsncat_s(szTempDir, MAX_PATH, L"\\AppData\\Local\\Temp\\miPDFconvert\\Spool", _TRUNCATE);
 			wcsncpy_s(m_szOutputPath, MAX_PATH, szTempDir, _TRUNCATE);
 			wcsncpy_s(m_nszOutputPath, MAX_PATH, szTempDir, _TRUNCATE);
 			g_pLog->Log(LOGLEVEL_ALL, L" TempDirectory:         %s", szTempDir);
@@ -1247,7 +1247,7 @@ void CPort::SetHomeDirectory(HANDLE hToken)
 			WCHAR temp[MAX_PATH] = { 0 };
 			GetEnvironmentVariableW(L"TEMP", temp, MAX_PATH);
 			wcsncpy_s(szTempDir, MAX_PATH, temp, _TRUNCATE);
-			wcsncat_s(szTempDir, MAX_PATH, L"\\miPDFConvert_", _TRUNCATE);
+			wcsncat_s(szTempDir, MAX_PATH, L"\\miPDFconvert_", _TRUNCATE);
 			wcsncat_s(szTempDir, MAX_PATH, UserName(), _TRUNCATE);
 			wcsncat_s(szTempDir, MAX_PATH, L"\\Spool\\", _TRUNCATE);
 			wcsncpy_s(m_szOutputPath, MAX_PATH, szTempDir, _TRUNCATE);
@@ -1262,7 +1262,7 @@ void CPort::SetHomeDirectory(HANDLE hToken)
 		WCHAR temp[MAX_PATH] = { 0 };
 		GetEnvironmentVariableW(L"TEMP", temp, MAX_PATH);
 		wcsncpy_s(szTempDir, MAX_PATH, temp, _TRUNCATE);
-		wcsncat_s(szTempDir, MAX_PATH, L"\\miPDFConvert_", _TRUNCATE);
+		wcsncat_s(szTempDir, MAX_PATH, L"\\miPDFconvert_", _TRUNCATE);
 		wcsncat_s(szTempDir, MAX_PATH, UserName(), _TRUNCATE);
 		wcsncat_s(szTempDir, MAX_PATH, L"\\Spool\\", _TRUNCATE);
 		wcsncpy_s(m_szOutputPath, MAX_PATH, szTempDir, _TRUNCATE);

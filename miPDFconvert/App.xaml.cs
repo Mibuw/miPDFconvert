@@ -1,4 +1,4 @@
-﻿// miPDFConvert - virtual PDF printer
+﻿// miPDFconvert - virtual PDF printer
 // Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)
 //
 // This program is free software: you can redistribute it and/or modify it
@@ -22,7 +22,7 @@ using System.Text;
 using System.Threading;
 using System.Windows;
 
-namespace miPDFConvert
+namespace miPDFconvert
 {
     /// <summary>
     /// Interaction logic for App.xaml
@@ -40,9 +40,9 @@ namespace miPDFConvert
         {
             // Bulletproof diagnostics: record startup and any unhandled crash to a plain text
             // file that does NOT depend on log4net or the application configuration. If the
-            // deployed miPDFConvert.dll.config is malformed, log4net cannot initialize and the
+            // deployed miPDFconvert.dll.config is malformed, log4net cannot initialize and the
             // normal log stays empty - this trace still tells us the process started and why it
-            // failed. File: %ProgramData%\miPDFConvert\miPDFConvert.trace.log
+            // failed. File: %ProgramData%\miPDFconvert\miPDFconvert.trace.log
             AppDomain.CurrentDomain.UnhandledException += (s, ev) =>
                 WriteStartupTrace("UNHANDLED (AppDomain): " + ev.ExceptionObject);
             this.DispatcherUnhandledException += (s, ev) =>
@@ -61,10 +61,10 @@ namespace miPDFConvert
             {
                 WriteStartupTrace("XmlConfigurator.Configure() failed (log4net logging will be unavailable): " + ex);
             }
-            // Check if there is another miPDFConvert process running, if so, we have to wait until it is closed.
+            // Check if there is another miPDFconvert process running, if so, we have to wait until it is closed.
             while (IsOldInstanceRunning())
             {
-                LOGGER.Debug("Waiting for old miPDFConvert processes to end...");
+                LOGGER.Debug("Waiting for old miPDFconvert processes to end...");
                 Thread.Sleep(300);
             }
 
@@ -76,14 +76,14 @@ namespace miPDFConvert
 
             if ((args?.Length ?? 0) == 0)
             {
-                LOGGER.Error("miPDFConvert started without any arguments! Use -ps followed by PostScript standard input stream or specify a PDF input file path as first argument.");
-                _ = MessageBox.Show("miPDFConvert started without any arguments! Use -ps followed by PostScript standard input stream or specify a PDF input file path as first argument.", "Error", MessageBoxButton.OK);
+                LOGGER.Error("miPDFconvert started without any arguments! Use -ps followed by PostScript standard input stream or specify a PDF input file path as first argument.");
+                _ = MessageBox.Show("miPDFconvert started without any arguments! Use -ps followed by PostScript standard input stream or specify a PDF input file path as first argument.", "Error", MessageBoxButton.OK);
                 Environment.Exit(1);
                 return;
             }
 
 #pragma warning disable CS8604 // Mögliches Nullverweisargument.
-            LOGGER.Info($"miPDFConvert started with the following arguments: {String.Join(" ", args.Select(arg => arg.Contains(" ") ? $"\"{arg}\"" : arg))}.");
+            LOGGER.Info($"miPDFconvert started with the following arguments: {String.Join(" ", args.Select(arg => arg.Contains(" ") ? $"\"{arg}\"" : arg))}.");
 #pragma warning restore CS8604 // Mögliches Nullverweisargument.
 
             if (DoesCommandLineParameterExist(args, "-ps"))
@@ -98,8 +98,8 @@ namespace miPDFConvert
 
                 if (String.IsNullOrEmpty(psInputFilePath))
                 {
-                    LOGGER.Error($"miPDFConvert argument '-psfile' requires a PostScript file path as next argument!");
-                    _ = MessageBox.Show("miPDFConvert argument '-psfile' requires a PostScript file path as next argument!", "Error", MessageBoxButton.OK);
+                    LOGGER.Error($"miPDFconvert argument '-psfile' requires a PostScript file path as next argument!");
+                    _ = MessageBox.Show("miPDFconvert argument '-psfile' requires a PostScript file path as next argument!", "Error", MessageBoxButton.OK);
                     Environment.Exit(1);
                     return;
                 }
@@ -111,7 +111,7 @@ namespace miPDFConvert
             {
                 pdfInputFilePath = String.Join(" ", args);
                 inputFileName = Path.GetFileName(pdfInputFilePath);
-                LOGGER.Info($"miPDFConvert started with command line argument '{pdfInputFilePath}'. Interpreting this as PDF input file path.");
+                LOGGER.Info($"miPDFconvert started with command line argument '{pdfInputFilePath}'. Interpreting this as PDF input file path.");
             }
             Boolean.TryParse(ConfigurationManager.AppSettings[CREATE_FILES_KEY], out bool createDocumentFiles);
             byte[]? pdf = GetPdfDocument(pdfInputFilePath, psInputFilePath, createDocumentFiles);
@@ -119,7 +119,7 @@ namespace miPDFConvert
         }
 
         /// <summary>
-        /// Appends a diagnostic line to %ProgramData%\miPDFConvert\miPDFConvert.trace.log.
+        /// Appends a diagnostic line to %ProgramData%\miPDFconvert\miPDFconvert.trace.log.
         /// Deliberately independent of log4net/ConfigurationManager so it also works when the
         /// application configuration is broken. Never throws.
         /// </summary>
@@ -127,10 +127,10 @@ namespace miPDFConvert
         {
             try
             {
-                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "miPDFConvert");
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "miPDFconvert");
                 Directory.CreateDirectory(dir);
                 File.AppendAllText(
-                    Path.Combine(dir, "miPDFConvert.trace.log"),
+                    Path.Combine(dir, "miPDFconvert.trace.log"),
                     $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{Environment.UserName}] {message}{Environment.NewLine}");
             }
             catch { /* diagnostics must never throw */ }
@@ -153,7 +153,7 @@ namespace miPDFConvert
                 string strPdfFilePath = String.Empty;
                 try
                 {
-                    strPdfFilePath = Path.Combine(Path.GetTempPath(), "miPDFConvert.pdf");
+                    strPdfFilePath = Path.Combine(Path.GetTempPath(), "miPDFconvert.pdf");
                     LOGGER.Debug($"Saving PDF document as \"{strPdfFilePath}\"...");
                     File.WriteAllBytes(strPdfFilePath, pdf);
                     LOGGER.Debug("PDF document saved.");
@@ -236,7 +236,7 @@ namespace miPDFConvert
                             UseShellExecute = true,
                             WorkingDirectory = Path.GetDirectoryName(resolvedTarget) ?? AppDomain.CurrentDomain.BaseDirectory
                         };
-                        // The print pipeline starts miPDFConvert in the background, so a target
+                        // The print pipeline starts miPDFconvert in the background, so a target
                         // application we launch inherits that state and its window would stay behind
                         // other windows (Windows foreground lock). Take the foreground ourselves via a
                         // hidden topmost owner window so we hold the right to hand it over, then actively
@@ -257,7 +257,7 @@ namespace miPDFConvert
                             // IMPORTANT: exit explicitly. This is a WPF application without a
                             // main window, so without this call the dispatcher loop would keep
                             // running forever, the process would never terminate and the calling
-                            // miPDFConvertBase launcher would block on its WaitForSingleObject
+                            // miPDFconvertBase launcher would block on its WaitForSingleObject
                             // timeout (up to 180 s). Exiting here releases the print pipeline
                             // immediately.
                             Environment.Exit(0);
@@ -279,7 +279,7 @@ namespace miPDFConvert
             }
             finally
             {
-                LOGGER.Info($"Exiting miPDFConvert application with code {Environment.ExitCode}.");
+                LOGGER.Info($"Exiting miPDFconvert application with code {Environment.ExitCode}.");
             }
         }
 
@@ -345,12 +345,12 @@ namespace miPDFConvert
 
         /// <summary>
         /// Forces the main window of a target application into the foreground. Because the print
-        /// pipeline starts miPDFConvert in the background, a process it launches inherits that state
+        /// pipeline starts miPDFconvert in the background, a process it launches inherits that state
         /// and Windows' foreground lock keeps the window behind others. This works around the lock by
         /// (1) granting the target the right to set the foreground window, (2) waiting for its window
         /// to appear, and (3) attaching to the current foreground thread's input queue before calling
         /// SetForegroundWindow. The hidden topmost owner window (created by the caller) keeps
-        /// miPDFConvert itself in the foreground while this runs and is closed at the end.
+        /// miPDFconvert itself in the foreground while this runs and is closed at the end.
         /// </summary>
         private static void BringProcessToForeground(Process process, Window foregroundOwner)
         {
@@ -486,7 +486,7 @@ namespace miPDFConvert
                     string strPostScriptFilePath = String.Empty;
                     try
                     {
-                        strPostScriptFilePath = Path.Combine(Path.GetTempPath(), "miPDFConvert.ps");
+                        strPostScriptFilePath = Path.Combine(Path.GetTempPath(), "miPDFconvert.ps");
                         LOGGER.Debug($"Saving PostScript document as \"{strPostScriptFilePath}\"...");
                         File.WriteAllBytes(strPostScriptFilePath, psBinary);
                         LOGGER.Debug("PDF document saved.");
@@ -691,17 +691,17 @@ namespace miPDFConvert
         private static bool IsOldInstanceRunning()
         {
             Process currentProcess = Process.GetCurrentProcess();
-            Process[] miPDFConvertProcesses = Process.GetProcessesByName("miPDFConvert");
+            Process[] miPDFconvertProcesses = Process.GetProcessesByName("miPDFconvert");
 
-            var earliestMiPDFConvertProcess = DateTime.Now;
+            var earliestMiPDFconvertProcess = DateTime.Now;
 
 #pragma warning disable CS8602 // Dereferenzierung eines möglichen Nullverweises.
-            foreach (Process prc in miPDFConvertProcesses.Where(p => p.Id != currentProcess.Id && p.MainModule.FileName.Contains("miPDFConvert.exe")))
+            foreach (Process prc in miPDFconvertProcesses.Where(p => p.Id != currentProcess.Id && p.MainModule.FileName.Contains("miPDFconvert.exe")))
                 if (prc.StartTime < currentProcess.StartTime)
-                    earliestMiPDFConvertProcess = prc.StartTime;
+                    earliestMiPDFconvertProcess = prc.StartTime;
 #pragma warning restore CS8602 // Dereferenzierung eines möglichen Nullverweises.
 
-            return earliestMiPDFConvertProcess < currentProcess.StartTime;
+            return earliestMiPDFconvertProcess < currentProcess.StartTime;
         }
 
         private static GhostscriptVersionInfo FindCorrectGhostscriptLibrary()

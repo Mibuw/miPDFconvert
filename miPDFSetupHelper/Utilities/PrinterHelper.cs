@@ -14,15 +14,15 @@ namespace miMonitor.SetupHelper.Utilities
         /// <summary>
         ///     List all printers that are connected to the MIPDFCONVERT: port
         /// </summary>
-        /// <returns>A Collection of miPDFConvert printers</returns>
-        public virtual ICollection<string> GetmiPDFConvertPrinters()
+        /// <returns>A Collection of miPDFconvert printers</returns>
+        public virtual ICollection<string> GetmiPDFconvertPrinters()
         {
             var printerInfos = EnumPrinters(PrinterEnumFlags.PRINTER_ENUM_LOCAL);
 
             var printers = new List<string>();
 
             foreach (var printer in printerInfos)
-                if (printer.pDriverName.Equals("miPDFConvert Virtual Printer", StringComparison.OrdinalIgnoreCase))
+                if (printer.pDriverName.Equals("miPDFconvert Virtual Printer", StringComparison.OrdinalIgnoreCase))
                     printers.Add(printer.pPrinterName);
 
             printers.Sort();
@@ -66,7 +66,7 @@ namespace miMonitor.SetupHelper.Utilities
         {
             var settings = new PrinterSettings();
             var defaultPrinter = settings.PrinterName;
-            var printer = GetApplicablemiPDFConvertPrinter(primaryPrinter, defaultPrinter);
+            var printer = GetApplicablemiPDFconvertPrinter(primaryPrinter, defaultPrinter);
 
             var psi = new ProcessStartInfo("RUNDLL32.exe", "PRINTUI.DLL,PrintUIEntry /k /n \"" + printer + "\"");
             psi.CreateNoWindow = true;
@@ -74,12 +74,12 @@ namespace miMonitor.SetupHelper.Utilities
         }
 
         /// <summary>
-        ///     Prints a windows test page to the preferred printer. It searches all printers connected to the miPDFConvert port. If
-        ///     one of them is called "miPDFConvert", this one is used. If not, the first one will be used.
+        ///     Prints a windows test page to the preferred printer. It searches all printers connected to the miPDFconvert port. If
+        ///     one of them is called "miPDFconvert", this one is used. If not, the first one will be used.
         /// </summary>
         public void PrintWindowsTestPage()
         {
-            PrintWindowsTestPage("miPDFConvert");
+            PrintWindowsTestPage("miPDFconvert");
         }
 
         /// <summary>
@@ -100,36 +100,36 @@ namespace miMonitor.SetupHelper.Utilities
         }
 
         /// <summary>
-        ///     Function that searches all printers connected to the miPDFConvert port and returns the most applicable. This is
+        ///     Function that searches all printers connected to the miPDFconvert port and returns the most applicable. This is
         ///     either the requested printer,
-        ///     the default Printer, the one with the name "miPDFConvert" or the first one in alphabetical order.
+        ///     the default Printer, the one with the name "miPDFconvert" or the first one in alphabetical order.
         /// </summary>
-        /// <param name="requestedPrinter">Name of the primary miPDFConvert printer</param>
+        /// <param name="requestedPrinter">Name of the primary miPDFconvert printer</param>
         /// <param name="defaultPrinter">Name of the current default printer</param>
-        /// <returns>null if no miPDFConvert printer is installed, else the name of the most applicable miPDFConvert printer</returns>
-        public string GetApplicablemiPDFConvertPrinter(string requestedPrinter, string defaultPrinter)
+        /// <returns>null if no miPDFconvert printer is installed, else the name of the most applicable miPDFconvert printer</returns>
+        public string GetApplicablemiPDFconvertPrinter(string requestedPrinter, string defaultPrinter)
         {
-            var printers = GetmiPDFConvertPrinters();
+            var printers = GetmiPDFconvertPrinters();
 
             if (printers.Count == 0)
                 return null;
 
             // ReSharper disable once InconsistentNaming
-            string miPDFConvertPrinter = null;
+            string miPDFconvertPrinter = null;
             var isDefaultPrinter = false;
 
             foreach (var printer in printers)
             {
-                if (miPDFConvertPrinter == null)
-                    miPDFConvertPrinter = printer;
+                if (miPDFconvertPrinter == null)
+                    miPDFconvertPrinter = printer;
 
                 if (!isDefaultPrinter)
-                    if (printer.Equals("miPDFConvert", StringComparison.OrdinalIgnoreCase))
-                        miPDFConvertPrinter = printer;
+                    if (printer.Equals("miPDFconvert", StringComparison.OrdinalIgnoreCase))
+                        miPDFconvertPrinter = printer;
 
                 if (printer.Equals(defaultPrinter, StringComparison.OrdinalIgnoreCase))
                 {
-                    miPDFConvertPrinter = printer;
+                    miPDFconvertPrinter = printer;
                     isDefaultPrinter = true;
                 }
 
@@ -137,12 +137,12 @@ namespace miMonitor.SetupHelper.Utilities
                     return printer;
             }
 
-            return miPDFConvertPrinter;
+            return miPDFconvertPrinter;
         }
 
-        public string GetApplicablemiPDFConvertPrinter(string requestedPrinter)
+        public string GetApplicablemiPDFconvertPrinter(string requestedPrinter)
         {
-            return GetApplicablemiPDFConvertPrinter(requestedPrinter, GetDefaultPrinter());
+            return GetApplicablemiPDFconvertPrinter(requestedPrinter, GetDefaultPrinter());
         }
 
         [DllImport("winspool.drv", CharSet = CharSet.Auto, SetLastError = true)]

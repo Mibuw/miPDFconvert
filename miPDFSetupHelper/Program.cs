@@ -24,20 +24,20 @@ namespace miMonitor.SetupHelper
                     {
                         case "add":
 
-                            Actions.InstallmiPDFConvertPrinter();
+                            Actions.InstallmiPDFconvertPrinter();
                             for (int i = 0; i < 3; i++)
                             {
                                 if (Actions.IsRepairRequired())
                                 {
-                                    Actions.UninstallmiPDFConvertPrinter();
+                                    Actions.UninstallmiPDFconvertPrinter();
                                     Actions.WaitForPrintSpooler();
-                                    Actions.InstallmiPDFConvertPrinter();
+                                    Actions.InstallmiPDFconvertPrinter();
                                 }
                             }
                             break;
 
                         case "remove":
-                            Actions.UninstallmiPDFConvertPrinter();
+                            Actions.UninstallmiPDFconvertPrinter();
                             break;
 
                         default:
@@ -135,14 +135,14 @@ namespace miMonitor.SetupHelper
 
         /// <summary>
         /// Writes the given target application path into the TARGET_APPLICATION appSetting of
-        /// miPDFConvert.dll.config (located next to SetupHelper.exe in the install directory).
+        /// miPDFconvert.dll.config (located next to SetupHelper.exe in the install directory).
         /// Uses XmlDocument so the file's UTF-8 encoding, formatting and comments are preserved
         /// and attribute values are correctly XML-escaped.
         /// </summary>
         private static void SetTargetApplication(string targetPath)
         {
             var appDir = GetApplicationDirectory();
-            var configFile = Path.Combine(appDir, "miPDFConvert.dll.config");
+            var configFile = Path.Combine(appDir, "miPDFconvert.dll.config");
             if (!File.Exists(configFile))
             {
                 Console.WriteLine("Config file not found: " + configFile);
@@ -177,18 +177,18 @@ namespace miMonitor.SetupHelper
         {
             if (Environment.Is64BitOperatingSystem)
             {
-                CallRegAsmForShellWow6432("miPDFConvert.exe", "/codebase /tlb");
+                CallRegAsmForShellWow6432("miPDFconvert.exe", "/codebase /tlb");
             }
-            CallRegAsmForShell("miPDFConvert.exe", "/codebase /tlb");
+            CallRegAsmForShell("miPDFconvert.exe", "/codebase /tlb");
         }
 
         private static void UnregisterComInterface()
         {
             if (Environment.Is64BitOperatingSystem)
             {
-                CallRegAsmForShellWow6432("miPDFConvert.exe", "/unregister");
+                CallRegAsmForShellWow6432("miPDFconvert.exe", "/unregister");
             }
-            CallRegAsmForShell("miPDFConvert.exe", "/unregister");
+            CallRegAsmForShell("miPDFconvert.exe", "/unregister");
         }
 
         private static void CallRegAsmForShellWow6432(string fileName, string parameters)
