@@ -26,9 +26,9 @@
     Optionaler expliziter Pfad zu ISCC.exe.
 
 .PARAMETER PlatformToolset
-    Ueberschreibt das PlatformToolset der nativen C++-Projekte (z. B. 'v144'
-    oder 'v145'), falls das im Projekt eingestellte v143 (VS 2022) nicht
-    installiert ist. Leer = im Projekt eingestellter Wert.
+    Ueberschreibt das PlatformToolset der nativen C++-Projekte (z. B. 'v143'
+    oder 'v144'), falls das im Projekt eingestellte v145 nicht installiert ist.
+    Leer = im Projekt eingestellter Wert (v145).
 
 .PARAMETER Sign
     Signiert die eigenen Binaries und das Setup mit einem Code-Signing-Zertifikat
