@@ -4,6 +4,8 @@
 
 # miPDFconvert
 
+[![GitHub release](https://img.shields.io/github/v/release/Mibuw/miPDFconvert)](https://github.com/Mibuw/miPDFconvert/releases/latest) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+
 A virtual PDF printer for Windows. Install it and a new printer named **miPDFconvert**
 appears in Windows. Anything you print to it is converted to a PDF, which is then either
 handed to a configurable **target application** or offered to you through a *Save As* dialog.
@@ -164,3 +166,13 @@ Third-party components and their licenses are documented in
 > own distribution, the AGPL (or a commercial Artifex license) applies to Ghostscript as well.
 
 This project is not affiliated with or endorsed by clawSoft, pdfforge, or Artifex Software.
+
+---
+
+## Author
+
+**Wolfgang Mitterbucher** — Software Engineering & Digital Identity, Leonding (Austria)
+
+🌐 [www.mitterbucher.com](https://www.mitterbucher.com) · 💼 [LinkedIn](https://at.linkedin.com/in/wolfgangmitterbucher) · ✉️ office@mitterbucher.com
+
+**More open-source projects:** [miPDFconvert](https://github.com/Mibuw/miPDFconvert) · [miPDFvalidator](https://github.com/Mibuw/miPDFvalidator) · [miEUDIverifier](https://github.com/Mibuw/miEUDIverifier)
