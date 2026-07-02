@@ -6,17 +6,17 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <StartupObject>miPDFConvert.App</StartupObject>
+    <StartupObject>miPDFconvert.App</StartupObject>
     <BaseOutputPath>..\build</BaseOutputPath>
     <PlatformTarget>x86</PlatformTarget>
-    <ApplicationIcon>miPDFConvert.ico</ApplicationIcon>
+    <ApplicationIcon>miPDFconvert.ico</ApplicationIcon>
     <Copyright>Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)</Copyright>
     <Company>Wolfgang Mitterbucher</Company>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="miPDFConvert.ico" />
+    <Content Include="miPDFconvert.ico" />
     <None Include="..\LICENSE" Link="LICENSE" Pack="true" PackagePath="" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

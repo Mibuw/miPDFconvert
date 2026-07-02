@@ -1,27 +1,27 @@
 ; ============================================================================
-;  miPDFConvert - Inno Setup Script
-;  Ersetzt das bisherige Visual Studio Setup-Projekt (miPDFConvertSetup.vdproj)
+;  miPDFconvert - Inno Setup Script
+;  Ersetzt das bisherige Visual Studio Setup-Projekt (miPDFconvertSetup.vdproj)
 ;
 ;  Bildet alles nach, was das alte Setup geboten hat:
-;    * Installiert die komplette Publish-Ausgabe (miPDFConvert, miPDFConvertBase,
+;    * Installiert die komplette Publish-Ausgabe (miPDFconvert, miPDFconvertBase,
 ;      SetupHelper, Ghostscript gsdll32/64, alle Abhaengigkeiten)
 ;    * Legt die Druckertreiber-Dateien unter miMonitor\x86 und miMonitor\x64 ab
 ;    * Ruft SetupHelper.exe fuer Treiber-Installation und COM-Registrierung auf
 ;    * Prueft die Voraussetzungen (VC++ Redistributable 14, .NET 8 Desktop Runtime)
 ;    * Per-Machine Installation, Vorgaengerversionen werden ersetzt
 ;
-;  Build:  ISCC.exe miPDFConvert.iss
+;  Build:  ISCC.exe miPDFconvert.iss
 ;          (Inno Setup 6, https://jrsoftware.org/isdl.php)
 ; ============================================================================
 
-#define MyAppName        "miPDFConvert"
+#define MyAppName        "miPDFconvert"
 #define MyAppVersion     "1.0.0"
 #define MyAppPublisher   "miPDF"
 #define MyAppURL         "https://mitterbucher.com"
 ; UpgradeCode aus dem alten vdproj -> gleiche AppId sorgt fuer saubere Updates
 #define MyAppId          "{{CC40866C-933B-4003-B1D2-73B281E517F9}"
 
-; Relative Quellpfade (dieses Skript liegt in ...\miPDFConvert\miPDFConvertSetup)
+; Relative Quellpfade (dieses Skript liegt in ...\miPDFconvert\miPDFconvertSetup)
 #define PublishDir       "..\build\publish"
 #define LibWin32Dir      "..\lib\miMonitor\Win32"
 #define LibWin64Dir      "..\lib\miMonitor\Win64"
@@ -43,7 +43,7 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 AppContact={#MyAppURL}
 VersionInfoVersion={#MyAppVersion}
-; Installation nach "Program Files (x86)\miPDF\miPDFConvert"
+; Installation nach "Program Files (x86)\miPDF\miPDFconvert"
 ; (App ist x86 -> Setup laeuft im 32-Bit-Modus, {autopf} = Program Files (x86))
 DefaultDirName={autopf}\{#MyAppPublisher}\{#MyAppName}
 DefaultGroupName={#MyAppName}
@@ -51,14 +51,14 @@ DisableProgramGroupPage=yes
 ; Per-Machine Installation, Adminrechte werden benoetigt (Treiber + COM)
 PrivilegesRequired=admin
 ; Vorgaengerversion automatisch ersetzen (entspricht RemovePreviousVersions=TRUE)
-UninstallDisplayIcon={app}\miPDFConvert.ico
+UninstallDisplayIcon={app}\miPDFconvert.ico
 UninstallDisplayName={#MyAppName}
-SetupIconFile=miPDFConvert.ico
+SetupIconFile=miPDFconvert.ico
 WizardStyle=modern
 Compression=lzma2/ultra64
 SolidCompression=yes
 OutputDir=Release
-OutputBaseFilename=miPDFConvertSetup_{#MyAppVersion}
+OutputBaseFilename=miPDFconvertSetup_{#MyAppVersion}
 ; ARM64 wird (wie beim alten Setup) ueber die x64-Treiberdateien mitbedient
 
 ; Code-Signatur (nur wenn ISCC mit /DSIGN aufgerufen wird, z. B. build.ps1 -Sign).
@@ -76,12 +76,12 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 ; --- Hauptanwendung: komplette Publish-Ausgabe nach {app} ---
-;     enthaelt miPDFConvert.exe, miPDFConvertBase.exe, SetupHelper.exe,
+;     enthaelt miPDFconvert.exe, miPDFconvertBase.exe, SetupHelper.exe,
 ;     gsdll32.dll, gsdll64.dll, alle abhaengigen DLLs, configs und runtimes\
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: "*.pdb"
 
 ; --- Programmsymbol ---
-Source: "miPDFConvert.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "miPDFconvert.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 ; --- Druckertreiber-Dateien: 32 Bit nach {app}\miMonitor\x86 ---
 Source: "{#LibWin32Dir}\pscript5.dll";     DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
@@ -142,7 +142,7 @@ begin
     'An welche Anwendung soll die erzeugte PDF automatisch uebergeben werden?',
     'Optional: Waehlen Sie eine Anwendung, die die erzeugte PDF-Datei automatisch als Argument ' +
     'erhaelt (z. B. einen PDF-Viewer). Lassen Sie das Feld leer, um beim Drucken stattdessen ' +
-    'einen "Speichern unter"-Dialog zu erhalten. Spaeter aenderbar in miPDFConvert.dll.config.');
+    'einen "Speichern unter"-Dialog zu erhalten. Spaeter aenderbar in miPDFconvert.dll.config.');
   TargetPage.Add('Zielanwendung (optional):', 'Programme (*.exe)|*.exe|Alle Dateien (*.*)|*.*', '.exe');
 end;
 

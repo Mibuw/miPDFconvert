@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Zentrales Build-Skript fuer miPDFConvert.
+    Zentrales Build-Skript fuer miPDFconvert.
 
 .DESCRIPTION
     Baut die gesamte Loesung in der richtigen Reihenfolge und erzeugt am Ende
@@ -8,8 +8,8 @@
 
       1. Native Druckermonitor-DLLs (miMonitor, miMonitorUI) - Release Win32 + x64
       2. SetupHelper (.NET Framework)            -> build\publish
-      3. miPDFConvert + miPDFConvertBase (Publish) -> build\publish
-      4. Inno Setup (miPDFConvert.iss)           -> miPDFConvertSetup\Release\miPDFConvertSetup.exe
+      3. miPDFconvert + miPDFconvertBase (Publish) -> build\publish
+      4. Inno Setup (miPDFconvert.iss)           -> miPDFconvertSetup\Release\miPDFconvertSetup.exe
 
     MSBuild und der Inno-Compiler (ISCC.exe) werden automatisch gesucht.
 
@@ -202,10 +202,10 @@ $nativeProjects = @(
 )
 $setupHelper   = Join-Path $root 'miPDFSetupHelper\SetupHelper.csproj'
 $appProjects   = @(
-    (Join-Path $root 'miPDFConvert\miPDFConvert.csproj'),
-    (Join-Path $root 'miPDFConvertBase\miPDFConvertBase.csproj')
+    (Join-Path $root 'miPDFconvert\miPDFconvert.csproj'),
+    (Join-Path $root 'miPDFconvertBase\miPDFconvertBase.csproj')
 )
-$issFile       = Join-Path $root 'miPDFConvertSetup\miPDFConvert.iss'
+$issFile       = Join-Path $root 'miPDFconvertSetup\miPDFconvert.iss'
 
 $msbuild = Find-MSBuild
 Write-Host "MSBuild: $msbuild" -ForegroundColor DarkGray
@@ -275,10 +275,10 @@ foreach ($proj in $appProjects) {
 # ---------------------------------------------------------------------------
 if ($Sign) {
     Invoke-SignFiles @(
-        (Join-Path $root 'build\publish\miPDFConvert.dll'),
-        (Join-Path $root 'build\publish\miPDFConvert.exe'),
-        (Join-Path $root 'build\publish\miPDFConvertBase.dll'),
-        (Join-Path $root 'build\publish\miPDFConvertBase.exe'),
+        (Join-Path $root 'build\publish\miPDFconvert.dll'),
+        (Join-Path $root 'build\publish\miPDFconvert.exe'),
+        (Join-Path $root 'build\publish\miPDFconvertBase.dll'),
+        (Join-Path $root 'build\publish\miPDFconvertBase.exe'),
         (Join-Path $root 'build\publish\SetupHelper.exe'),
         (Join-Path $root 'miPortMon\miMonitor\Release\Win32\miMonitor.dll'),
         (Join-Path $root 'miPortMon\miMonitor\Release\Win32\miMonitorUI.dll'),
@@ -301,7 +301,7 @@ if (-not $SkipSetup) {
     $isccArgs = @($issFile)
     if ($Sign) { $isccArgs += '/DSIGN' }
     Invoke-Checked $iscc $isccArgs 'Inno Setup'
-    $output = Join-Path $root 'miPDFConvertSetup\Release\miPDFConvertSetup.exe'
+    $output = Join-Path $root 'miPDFconvertSetup\Release\miPDFconvertSetup.exe'
     if (Test-Path $output) {
         Write-Host ''
         Write-Host "Setup erstellt: $output" -ForegroundColor Green

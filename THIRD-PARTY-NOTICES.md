@@ -1,8 +1,8 @@
-# Third-Party Notices — miPDFConvert
+# Third-Party Notices — miPDFconvert
 
-miPDFConvert — Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com).
+miPDFconvert — Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com).
 
-miPDFConvert is distributed under the **GNU Affero General Public License, version 3**
+miPDFconvert is distributed under the **GNU Affero General Public License, version 3**
 (see [`LICENSE`](LICENSE)).
 
 It incorporates and/or depends on the third-party components listed below. Each
@@ -40,7 +40,7 @@ GPL v3, which is compatible with the project's AGPL v3 license.
 
 The `miPDFSetupHelper/` component (printer/driver installation, spooler and
 related utilities) is a derivative work of **clawPDF**, which is itself based on
-**PDFCreator**. miPDFConvert also follows the overall architecture of clawPDF, an
+**PDFCreator**. miPDFconvert also follows the overall architecture of clawPDF, an
 open-source virtual PDF printer for Windows.
 
 - **clawPDF** — Copyright (C) 2019 Andrew Hess // clawSoft
@@ -54,7 +54,7 @@ Following the upstream clawPDF convention, the individual `.cs` files under
 through the root [`LICENSE`](LICENSE) file and this document. The copyright of
 the original authors is also recorded in
 `miPDFSetupHelper/Properties/AssemblyInfo.cs`. This is the primary reason
-miPDFConvert as a whole is distributed under AGPL v3.
+miPDFconvert as a whole is distributed under AGPL v3.
 
 ---
 
@@ -69,7 +69,7 @@ runtime through the managed wrapper below.
   commercial license from Artifex Software, Inc.**
 
 **Obligation:** If you distribute the Ghostscript binaries (e.g. `gsdll32.dll`)
-together with miPDFConvert, the AGPL v3 applies to Ghostscript and its complete
+together with miPDFconvert, the AGPL v3 applies to Ghostscript and its complete
 corresponding source must be made available — unless you have obtained a
 commercial license from Artifex. If you rely on AGPL Ghostscript in a networked
 service, AGPL §13 (remote-user source access) applies.
@@ -150,6 +150,6 @@ SOFTWARE.
 | System.ComponentModel | 4.3.0 | MIT | no |
 
 Because the project combines GPL-2.0-or-later and AGPL-3.0 components, the
-combined work **miPDFConvert** is distributed under **AGPL-3.0**, and its
+combined work **miPDFconvert** is distributed under **AGPL-3.0**, and its
 complete corresponding source code must be made available to recipients
 (including users interacting with it over a network, per AGPL §13).

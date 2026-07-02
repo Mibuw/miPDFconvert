@@ -1,4 +1,4 @@
-﻿// miPDFConvert - virtual PDF printer
+﻿// miPDFconvert - virtual PDF printer
 // Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)
 //
 // This program is free software: you can redistribute it and/or modify it
@@ -12,7 +12,7 @@ using log4net;
 using log4net.Config;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace miPDFConvertBase
+namespace miPDFconvertBase
 {
     public class Program
     {
@@ -23,14 +23,14 @@ namespace miPDFConvertBase
             XmlConfigurator.Configure();
             var arguments = args.Length > 0 ? String.Join(" ", args.Select(arg => arg.Contains(" ") ? $"\"{arg}\"" : arg)) : null;
 
-            LOGGER.Info($"miPDFConvertBase started with arguments: '{arguments}'");
+            LOGGER.Info($"miPDFconvertBase started with arguments: '{arguments}'");
 
             string launcherPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string miPDFConvertPath = Path.Combine(Path.GetDirectoryName(launcherPath)!, "miPDFConvert.exe");
+            string miPDFconvertPath = Path.Combine(Path.GetDirectoryName(launcherPath)!, "miPDFconvert.exe");
             // Quote the executable path: it contains spaces ("Program Files (x86)"), and
             // CreateProcessAsUser is called with lpApplicationName = null, so an unquoted path
             // would be parsed ambiguously.
-            string miPDFConvertCommandLine = $"\"{miPDFConvertPath}\"{(string.IsNullOrEmpty(arguments) ? null : " " + arguments)}";
+            string miPDFconvertCommandLine = $"\"{miPDFconvertPath}\"{(string.IsNullOrEmpty(arguments) ? null : " " + arguments)}";
            
 
             //INFODATAFILE parsing
@@ -58,22 +58,22 @@ namespace miPDFConvertBase
                         {
                             string username = iniData["0"]["Username"];
                             LOGGER.Info($"miPDFConverBase found following user in inffile '{username}'");
-                            miPDFConvertCommandLine = $"\"{miPDFConvertPath}\"{(string.IsNullOrEmpty(arguments) ? null : " " + arguments)}";
-                            string mainLogMessage = $"Trying to start miPDFConvert.exe application using '{miPDFConvertCommandLine}'";
+                            miPDFconvertCommandLine = $"\"{miPDFconvertPath}\"{(string.IsNullOrEmpty(arguments) ? null : " " + arguments)}";
+                            string mainLogMessage = $"Trying to start miPDFconvert.exe application using '{miPDFconvertCommandLine}'";
                             LOGGER.Info(mainLogMessage);
-                            ProcessUtils.LaunchUsingExplorerProcessOfUser(miPDFConvertCommandLine, username);
+                            ProcessUtils.LaunchUsingExplorerProcessOfUser(miPDFconvertCommandLine, username);
                         }
                         else
                         {
                             //maybe network interaction is required
-                            LOGGER.Info($"Skipping launch of miPDFConvertBase as ClientComputer '{clientComputer}' does not match local machine name '{Environment.MachineName}'");
+                            LOGGER.Info($"Skipping launch of miPDFconvertBase as ClientComputer '{clientComputer}' does not match local machine name '{Environment.MachineName}'");
                         }
                     }
                     Environment.Exit(0);
                 }
                 catch (Exception ex)
                 {
-                    LOGGER.Error("Exception while processing INFODATAFILE and launching miPDFConvert.", ex);
+                    LOGGER.Error("Exception while processing INFODATAFILE and launching miPDFconvert.", ex);
                     Console.WriteLine(ex);
                     Environment.ExitCode = 1;
                 }

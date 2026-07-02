@@ -83,7 +83,7 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationIcon>miPDFConvert.ico</ApplicationIcon>
+    <ApplicationIcon>miPDFconvert.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject>miMonitor.SetupHelper.Program</StartupObject>
@@ -155,7 +155,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="miPDFConvert.ico" />
+    <Content Include="miPDFconvert.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

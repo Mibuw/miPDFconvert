@@ -1,4 +1,4 @@
-﻿// miPDFConvert - virtual PDF printer
+﻿// miPDFconvert - virtual PDF printer
 // Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)
 //
 // This program is free software: you can redistribute it and/or modify it
@@ -20,7 +20,7 @@ using System.Security.Principal;
 //This code works best when run as an Admin user.
 //credits to https://veryblue.wordpress.com/code-snippets/pinvoke-createprocessasuser/
 
-namespace miPDFConvertBase
+namespace miPDFconvertBase
 {
     [StructLayout(LayoutKind.Sequential)]
     internal struct PROCESS_INFORMATION
