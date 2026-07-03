@@ -204,7 +204,13 @@ begin
   { --- Visual C++ Redistributable 14 --- }
   if not VCRedistInstalled() then
   begin
-    if MsgBox('Zur Ausfuehrung dieses Programms wird das Visual C++ Redistributable 14 ' +
+    { Unbeaufsichtigte Installation (z. B. winget: /VERYSILENT): keine Dialoge und
+      KEIN Abbruch - sonst schlaegt der Silent-Install fehl. Nur protokollieren;
+      die Laufzeitkomponente muss separat vorhanden sein bzw. als winget-Dependency
+      installiert werden. }
+    if WizardSilent() then
+      Log('VC++ Redistributable 14 nicht gefunden - Silent-Installation, wird fortgesetzt.')
+    else if MsgBox('Zur Ausfuehrung dieses Programms wird das Visual C++ Redistributable 14 ' +
               '(Visual Studio 2015-2022) benoetigt.' + #13#10#13#10 +
               'Moechten Sie jetzt die Downloadseite oeffnen? ' +
               '(Die Installation wird danach abgebrochen, damit Sie die Komponente nachinstallieren koennen.)',
@@ -219,7 +225,9 @@ begin
   { --- .NET 8 Desktop Runtime --- }
   if not DotNet8DesktopInstalled() then
   begin
-    if MsgBox('Zur Ausfuehrung dieses Programms wird die .NET 8 Desktop Runtime benoetigt.' + #13#10#13#10 +
+    if WizardSilent() then
+      Log('.NET 8 Desktop Runtime nicht gefunden - Silent-Installation, wird fortgesetzt.')
+    else if MsgBox('Zur Ausfuehrung dieses Programms wird die .NET 8 Desktop Runtime benoetigt.' + #13#10#13#10 +
               'Moechten Sie jetzt die Downloadseite oeffnen? ' +
               '(Die Installation wird danach abgebrochen, damit Sie die Komponente nachinstallieren koennen.)',
               mbConfirmation, MB_YESNO) = IDYES then
