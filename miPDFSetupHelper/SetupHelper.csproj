@@ -10,7 +10,10 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>miMonitor.SetupHelper</RootNamespace>
     <AssemblyName>SetupHelper</AssemblyName>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <!-- v4.7.2 statt v4.8: Windows Server 2019 bringt nur 4.7.2 mit - mit v4.8
+         haengt der Silent-Install (Inno [Run] + waituntilterminated) im unsichtbaren
+         CLR-Dialog "Framework installieren?" (siehe Chocolatey-Verify-Timeout 1.0.0) -->
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
