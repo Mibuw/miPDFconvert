@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 
 namespace miMonitor.SetupHelper.Helper
 {
@@ -6,28 +6,29 @@ namespace miMonitor.SetupHelper.Helper
     {
         public static void stop()
         {
-            ProcessStartInfo processStartInfo = new ProcessStartInfo();
-            processStartInfo.FileName = "net.exe";
-            processStartInfo.Arguments = "stop spooler";
-            processStartInfo.RedirectStandardOutput = true;
-            processStartInfo.RedirectStandardError = true;
-            processStartInfo.UseShellExecute = false;
-            processStartInfo.CreateNoWindow = true;
-            processStartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            Process.Start(processStartInfo).WaitForExit(1000 * 60);
+            RunNetCommand("stop spooler");
         }
 
         public static void start()
         {
-            ProcessStartInfo processStartInfo = new ProcessStartInfo();
-            processStartInfo.FileName = "net.exe";
-            processStartInfo.Arguments = "start spooler";
-            processStartInfo.RedirectStandardOutput = true;
-            processStartInfo.RedirectStandardError = true;
-            processStartInfo.UseShellExecute = false;
-            processStartInfo.CreateNoWindow = true;
-            processStartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            Process.Start(processStartInfo).WaitForExit(1000 * 60);
+            RunNetCommand("start spooler");
+        }
+
+        private static void RunNetCommand(string arguments)
+        {
+            ProcessStartInfo processStartInfo = new ProcessStartInfo
+            {
+                FileName = "net.exe",
+                Arguments = arguments,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden
+            };
+
+            using (var process = Process.Start(processStartInfo))
+                process.WaitForExit(1000 * 60);
         }
     }
 }

@@ -27,27 +27,6 @@ namespace miMonitor.SetupHelper.Driver
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-    public struct DRIVER_INFO_2
-    {
-        public uint cVersion;
-
-        [MarshalAs(UnmanagedType.LPTStr)]
-        public string pName;
-
-        [MarshalAs(UnmanagedType.LPTStr)]
-        public string pEnvironment;
-
-        [MarshalAs(UnmanagedType.LPTStr)]
-        public string pDriverPath;
-
-        [MarshalAs(UnmanagedType.LPTStr)]
-        public string pDataFile;
-
-        [MarshalAs(UnmanagedType.LPTStr)]
-        public string pConfigFile;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     public struct DRIVER_INFO_6
     {
         public UInt32 cVersion;
@@ -138,9 +117,6 @@ namespace miMonitor.SetupHelper.Driver
     {
         #region winspool
 
-        [DllImport("winspool.drv", CharSet = CharSet.Auto, SetLastError = true)]
-        internal static extern bool EnumMonitors(string pName, uint level, IntPtr pMonitors, uint cbBuf, ref uint pcbNeeded, ref uint pcReturned);
-
         [DllImport("winspool.drv", SetLastError = true, CharSet = CharSet.Auto)]
         internal static extern Int32 AddMonitor(String pName, UInt32 Level, ref MONITOR_INFO_2 pMonitors);
 
@@ -170,10 +146,6 @@ namespace miMonitor.SetupHelper.Driver
 
         [DllImport("winspool.drv", CharSet = CharSet.Auto, CallingConvention = CallingConvention.StdCall, SetLastError = true)]
         internal static extern bool DeletePrinter(IntPtr hPrinter);
-
-        [DllImport("winspool.drv", CharSet = CharSet.Ansi, SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool DeletePrinterConnection(String pName);
 
         [DllImport("winspool.drv", EntryPoint = "AddPrinterDriver", CharSet = CharSet.Auto, SetLastError = true)]
         internal static extern bool AddPrinterDriver(String pName,
