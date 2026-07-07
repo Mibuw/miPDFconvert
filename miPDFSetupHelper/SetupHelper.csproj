@@ -112,7 +112,6 @@
     <Compile Include="Utilities\CommandLineParser.cs" />
     <Compile Include="Utilities\OsHelper.cs" />
     <Compile Include="Utilities\PrinterHelper.cs" />
-    <Compile Include="Utilities\ShellExecuteHelper.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config">

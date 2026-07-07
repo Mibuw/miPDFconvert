@@ -6,7 +6,7 @@
 ;    * Installiert die komplette Publish-Ausgabe (miPDFconvert, miPDFconvertBase,
 ;      SetupHelper, Ghostscript gsdll32/64, alle Abhaengigkeiten)
 ;    * Legt die Druckertreiber-Dateien unter miMonitor\x86 und miMonitor\x64 ab
-;    * Ruft SetupHelper.exe fuer Treiber-Installation und COM-Registrierung auf
+;    * Ruft SetupHelper.exe fuer die Treiber-Installation auf
 ;    * Prueft die Voraussetzungen (VC++ Redistributable 14, .NET 8 Desktop Runtime)
 ;    * Per-Machine Installation, Vorgaengerversionen werden ersetzt
 ;
@@ -109,10 +109,7 @@ Filename: "{app}\SetupHelper.exe"; Parameters: "/Driver=Remove"; \
 ; 2) Druckertreiber installieren
 Filename: "{app}\SetupHelper.exe"; Parameters: "/Driver=Add"; \
     StatusMsg: "Installiere Druckertreiber..."; Flags: runhidden waituntilterminated
-; 3) COM-Schnittstelle registrieren
-Filename: "{app}\SetupHelper.exe"; Parameters: "/ComInterface=Register"; \
-    StatusMsg: "Registriere COM-Schnittstelle..."; Flags: runhidden waituntilterminated
-; 4) optionale Zielanwendung in die Konfiguration schreiben
+; 3) optionale Zielanwendung in die Konfiguration schreiben
 Filename: "{app}\SetupHelper.exe"; Parameters: "/TargetApp=""{code:GetTargetApp}"""; \
     StatusMsg: "Konfiguriere Zielanwendung..."; Check: HasTargetApp; Flags: runhidden waituntilterminated
 
@@ -121,9 +118,6 @@ Filename: "{app}\SetupHelper.exe"; Parameters: "/TargetApp=""{code:GetTargetApp}
 ; Treiber entfernen
 Filename: "{app}\SetupHelper.exe"; Parameters: "/Driver=Remove"; \
     RunOnceId: "RemoveDriver"; Flags: runhidden waituntilterminated
-; COM-Schnittstelle deregistrieren
-Filename: "{app}\SetupHelper.exe"; Parameters: "/ComInterface=Unregister"; \
-    RunOnceId: "UnregisterCom"; Flags: runhidden waituntilterminated
 
 [UninstallDelete]
 ; Treiberordner restlos aufraeumen (falls SetupHelper Restdateien hinterlaesst)

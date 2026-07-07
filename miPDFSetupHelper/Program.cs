@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
-using Microsoft.Win32;
 using miMonitor.SetupHelper.Driver;
 using miMonitor.SetupHelper.Utilities;
 
@@ -80,33 +79,6 @@ namespace miMonitor.SetupHelper
                 }
             }
 
-            if (clp.HasArgument("ComInterface"))
-            {
-                showUsage = false;
-                try
-                {
-                    switch (clp.GetArgument("ComInterface").ToLower())
-                    {
-                        case "register":
-                            RegisterComInterface();
-                            break;
-
-                        case "unregister":
-                            UnregisterComInterface();
-                            break;
-
-                        default:
-                            showUsage = true;
-                            break;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex);
-                    Environment.ExitCode = 1;
-                }
-            }
-
             if (clp.HasArgument("TargetApp"))
             {
                 showUsage = false;
@@ -130,7 +102,7 @@ namespace miMonitor.SetupHelper
             Console.WriteLine("SetupHelper " + Assembly.GetExecutingAssembly().GetName().Version);
             Console.WriteLine();
             Console.WriteLine("usage:");
-            Console.WriteLine("SetupHelper.exe [/Driver=Add|Remove] [/Printer=Add|Remove /Name=Printer] [/ComInterface=Register|Unregister] [/TargetApp=<path>]");
+            Console.WriteLine("SetupHelper.exe [/Driver=Add|Remove] [/Printer=Add|Remove /Name=Printer] [/TargetApp=<path>]");
         }
 
         /// <summary>
@@ -171,41 +143,6 @@ namespace miMonitor.SetupHelper
 
             doc.Save(configFile);
             Console.WriteLine("TARGET_APPLICATION set to \"" + targetPath + "\".");
-        }
-
-        private static void RegisterComInterface()
-        {
-            CallRegAsm("miPDFconvert.exe", "/codebase /tlb");
-        }
-
-        private static void UnregisterComInterface()
-        {
-            CallRegAsm("miPDFconvert.exe", "/unregister");
-        }
-
-        private static void CallRegAsm(string fileName, string parameters)
-        {
-            // Auf 64-Bit-Systemen in beiden Registry-Sichten (32- und 64-Bit) registrieren
-            if (Environment.Is64BitOperatingSystem)
-                CallRegAsm(fileName, parameters, @"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\.NETFramework");
-            CallRegAsm(fileName, parameters, @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\.NETFramework");
-        }
-
-        private static void CallRegAsm(string fileName, string parameters, string dotNetFrameworkRegPath)
-        {
-            Console.WriteLine(dotNetFrameworkRegPath);
-
-            var dotNetPath = Registry.GetValue(dotNetFrameworkRegPath, "InstallRoot", null)?.ToString();
-            if (string.IsNullOrEmpty(dotNetPath))
-                throw new InvalidOperationException("Cannot find .Net Framework in " + dotNetFrameworkRegPath);
-            var regAsmPath = Path.Combine(dotNetPath, "v4.0.30319\\RegAsm.exe");
-
-            var shellDll = Path.Combine(GetApplicationDirectory(), fileName);
-            var paramString = $"\"{shellDll}\" {parameters}";
-            Console.WriteLine(regAsmPath + " " + paramString);
-
-            var result = new ShellExecuteHelper().RunAsAdmin(regAsmPath, paramString);
-            Console.WriteLine(result.ToString());
         }
 
         private static string GetApplicationDirectory()
