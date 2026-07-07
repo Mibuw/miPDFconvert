@@ -1,7 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -15,24 +14,9 @@ namespace miMonitor.SetupHelper.Driver
 {
     public class miPDFconvertInstaller
     {
-        #region Printer Driver Win32 API Constants
-
-        private const uint DRIVER_KERNELMODE = 0x00000001;
-        private const uint DRIVER_USERMODE = 0x00000002;
-
-        private const uint APD_STRICT_UPGRADE = 0x00000001;
-        private const uint APD_STRICT_DOWNGRADE = 0x00000002;
-        private const uint APD_COPY_ALL_FILES = 0x00000004;
-        private const uint APD_COPY_NEW_FILES = 0x00000008;
-        private const uint APD_COPY_FROM_DIRECTORY = 0x00000010;
-
         private const uint DPD_DELETE_UNUSED_FILES = 0x00000001;
-        private const uint DPD_DELETE_SPECIFIC_VERSION = 0x00000002;
-        private const uint DPD_DELETE_ALL_FILES = 0x00000004;
 
         private const int WIN32_FILE_ALREADY_EXISTS = 183; // Returned by XcvData "AddPort" if the port already exists
-
-        #endregion Printer Driver Win32 API Constants
 
         private const string ENVIRONMENT = null;
         private const string PRINTERNAME = "miPDFconvert";
@@ -51,23 +35,12 @@ namespace miMonitor.SetupHelper.Driver
         private const string DRIVERHELPFILE = "PSCRIPT.HLP";
         private const string DRIVERDATAFILE = "ghostpdf.ppd";
 
-        private enum DriverFileIndex
-        {
-            Min = 0,
-            DriverFile = Min,
-            UIFile,
-            HelpFile,
-            DataFile,
-            Max = DataFile
-        };
-
         private readonly String[] printerDriverFiles = new String[] { DRIVERFILE, DRIVERUIFILE, DRIVERHELPFILE, DRIVERDATAFILE };
         private readonly String[] printerDriverDependentFiles = new String[] { "PSCRIPT.NTF" };
 
         #region Error messages for Trace/Debug
 
         private const string FILENOTDELETED_INUSE = "{0} is being used by another process. File was not deleted.";
-        private const string FILENOTDELETED_UNAUTHORIZED = "{0} is read-only, or its file permissions do not allow for deletion.";
 
         private const string FILENOTCOPIED_PRINTERDRIVER = "Printer driver file was not copied. Exception message: {0}";
         private const string FILENOTCOPIED_ALREADYEXISTS = "Destination file {0} was not copied/created - it already exists.";
@@ -76,8 +49,6 @@ namespace miMonitor.SetupHelper.Driver
 
         private const string NATIVE_COULDNOTENABLE64REDIRECTION = "Could not enable 64-bit file system redirection.";
         private const string NATIVE_COULDNOTREVERT64REDIRECTION = "Could not revert 64-bit file system redirection.";
-
-        private const string INSTALL_ROLLBACK_FAILURE_AT_FUNCTION = "Partial uninstallation failure. Function {0} returned false.";
 
         private const string REGISTRYCONFIG_NOT_ADDED = "Could not add port configuration to registry. Exception message: {0}";
         private const string REGISTRYCONFIG_NOT_DELETED = "Could not delete port configuration from registry. Exception message: {0}";
@@ -91,58 +62,20 @@ namespace miMonitor.SetupHelper.Driver
 
         #endregion Error messages for Trace/Debug
 
-        #region Constructors
-
-        public miPDFconvertInstaller()
-        {
-        }
-
-        #endregion Constructors
-
         #region Port operations
-
-#if DEBUG
-        public bool AddmiPDFconvertPort_Test()
-        {
-            return AddmiPDFconvertPort();
-        }
-#endif
 
         private bool AddmiPDFconvertPort()
         {
-            bool portAdded = false;
-
             int portAddResult = DoXcvDataPortOperation(PORTNAME, PORTMONITOR, "AddPort");
-            switch (portAddResult)
-            {
-                case 0:
-                case WIN32_FILE_ALREADY_EXISTS: // Port already exists - this is OK, we'll just keep using it
-                    portAdded = true;
-                    break;
-            }
-            return portAdded;
+            // Port already exists - this is OK, we'll just keep using it
+            return portAddResult == 0 || portAddResult == WIN32_FILE_ALREADY_EXISTS;
         }
 
-        public bool DeletemiPDFconvertPort()
+        private bool DeletemiPDFconvertPort()
         {
-            bool portDeleted = false;
-
-            int portDeleteResult = DoXcvDataPortOperation(PORTNAME, PORTMONITOR, "DeletePort");
-            switch (portDeleteResult)
-            {
-                case 0:
-                    portDeleted = true;
-                    break;
-            }
-            return portDeleted;
+            return DoXcvDataPortOperation(PORTNAME, PORTMONITOR, "DeletePort") == 0;
         }
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="portName"></param>
-        /// <param name="xcvDataOperation"></param>
-        /// <returns></returns>
         /// <remarks>I can't remember the name/link of the developer who wrote this code originally,
         /// so I can't provide a link or credit.</remarks>
         private int DoXcvDataPortOperation(string portName, string portMonitor, string xcvDataOperation)
@@ -194,7 +127,7 @@ namespace miMonitor.SetupHelper.Driver
         /// </summary>
         /// <param name="monitorFilePath">Directory where the uninstalled monitor dll is located</param>
         /// <returns>true if the monitor is installed, false if install failed</returns>
-        public bool AddmiPDFconvertPortMonitor(String monitorFilePath)
+        private bool AddmiPDFconvertPortMonitor(String monitorFilePath)
         {
             bool monitorAdded = false;
 
@@ -204,10 +137,8 @@ namespace miMonitor.SetupHelper.Driver
             {
                 oldRedirectValue = DisableWow64Redirection();
                 Console.WriteLine("Path: " + monitorFilePath);
-                //if (!DoesMonitorExist(PORTMONITOR))
-                //{
-                // Copy the monitor DLL to
-                // the system directory
+
+                // Copy the monitor DLLs to the system directory
                 String monitorfileSourcePath = Path.Combine(monitorFilePath, MONITORDLL);
                 String monitorfileDestinationPath = Path.Combine(Environment.SystemDirectory, MONITORDLL);
                 String monitoruifileSourcePath = Path.Combine(monitorFilePath, MONITORUIDLL);
@@ -235,19 +166,11 @@ namespace miMonitor.SetupHelper.Driver
                 newMonitor.pName = PORTMONITOR;
                 newMonitor.pEnvironment = ENVIRONMENT;
                 newMonitor.pDLLName = MONITORDLL;
-                if (!AddPortMonitor(newMonitor))
+                if (NativeMethods.AddMonitor(null, 2, ref newMonitor) != 0)
+                    monitorAdded = true;
+                else
                     Console.WriteLine(String.Format("Could not add port monitor {0}", PORTMONITOR) + Environment.NewLine +
                                               String.Format(WIN32ERROR, Marshal.GetLastWin32Error().ToString()));
-                else
-                    monitorAdded = true;
-                //}
-                //else
-                //{
-                // Monitor already installed -
-                // log it, and keep going
-                //    Console.WriteLine(String.Format("Port monitor {0} already installed.", PORTMONITOR));
-                //    monitorAdded = true;
-                // }
             }
             finally
             {
@@ -260,9 +183,7 @@ namespace miMonitor.SetupHelper.Driver
         /// <summary>
         /// Disables WOW64 system directory file redirection
         /// if the current process is both
-        /// 32-bit, and running on a 64-bit OS -
-        /// Compiling for 64-bit OS, and setting the install dir to "ProgramFiles64"
-        /// should ensure this code never runs in production
+        /// 32-bit, and running on a 64-bit OS
         /// </summary>
         /// <returns>A Handle, which should be retained to reenable redirection</returns>
         private IntPtr DisableWow64Redirection()
@@ -277,9 +198,7 @@ namespace miMonitor.SetupHelper.Driver
         /// <summary>
         /// Reenables WOW64 system directory file redirection
         /// if the current process is both
-        /// 32-bit, and running on a 64-bit OS -
-        /// Compiling for 64-bit OS, and setting the install dir to "ProgramFiles64"
-        /// should ensure this code never runs in production
+        /// 32-bit, and running on a 64-bit OS
         /// </summary>
         /// <param name="oldValue">A Handle value - should be retained from call to <see cref="DisableWow64Redirection"/></param>
         private void RevertWow64Redirection(IntPtr oldValue)
@@ -297,7 +216,7 @@ namespace miMonitor.SetupHelper.Driver
         /// Removes the miPDFconvert port monitor
         /// </summary>
         /// <returns>true if monitor successfully removed, false if removal failed</returns>
-        public bool RemovemiPDFconvertPortMonitor()
+        private bool RemovemiPDFconvertPortMonitor()
         {
             bool monitorRemoved = false;
             if ((NativeMethods.DeleteMonitor(null, ENVIRONMENT, PORTMONITOR)) != 0)
@@ -314,21 +233,7 @@ namespace miMonitor.SetupHelper.Driver
 
         private bool DeletemiPDFconvertPortMonitorDll()
         {
-            return DeletePortMonitorDll(MONITORDLL, MONITORUIDLL);
-        }
-
-        private bool DeletePortMonitorDll(String monitorDll, string monitoruiDLL)
-        {
-            ProcessStartInfo processStartInfo = new ProcessStartInfo();
-            processStartInfo.FileName = "net.exe";
-            processStartInfo.Arguments = "stop spooler";
-            processStartInfo.RedirectStandardOutput = true;
-            processStartInfo.RedirectStandardError = true;
-            processStartInfo.UseShellExecute = false;
-            processStartInfo.CreateNoWindow = true;
-            processStartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-
-            Process.Start(processStartInfo).WaitForExit(1000 * 60);
+            Spooler.stop();
 
             bool monitorDllRemoved = false;
 
@@ -338,11 +243,11 @@ namespace miMonitor.SetupHelper.Driver
             {
                 oldRedirectValue = DisableWow64Redirection();
 
-                monitorDllFullPathname = Path.Combine(Environment.SystemDirectory, monitorDll);
+                monitorDllFullPathname = Path.Combine(Environment.SystemDirectory, MONITORDLL);
 
                 File.Delete(monitorDllFullPathname);
                 monitorDllRemoved = true;
-                File.Delete(Path.Combine(Environment.SystemDirectory, monitoruiDLL));
+                File.Delete(Path.Combine(Environment.SystemDirectory, MONITORUIDLL));
             }
             catch (Win32Exception windows32Ex)
             {
@@ -377,89 +282,16 @@ namespace miMonitor.SetupHelper.Driver
                 }
             }
 
-            processStartInfo.Arguments = "start spooler";
-            processStartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-
-            Process.Start(processStartInfo).WaitForExit(1000 * 60);
+            Spooler.start();
 
             return monitorDllRemoved;
-        }
-
-        private bool AddPortMonitor(MONITOR_INFO_2 newMonitor)
-        {
-            bool monitorAdded = false;
-            if ((NativeMethods.AddMonitor(null, 2, ref newMonitor) != 0))
-            {
-                monitorAdded = true;
-            }
-            return monitorAdded;
-        }
-
-        private bool DeletePortMonitor(String monitorName)
-        {
-            bool monitorDeleted = false;
-            if ((NativeMethods.DeleteMonitor(null, ENVIRONMENT, monitorName)) != 0)
-            {
-                monitorDeleted = true;
-            }
-            return monitorDeleted;
-        }
-
-        private bool DoesMonitorExist(String monitorName)
-        {
-            bool monitorExists = false;
-            List<MONITOR_INFO_2> portMonitors = EnumerateMonitors();
-            foreach (MONITOR_INFO_2 portMonitor in portMonitors)
-            {
-                if (portMonitor.pName == monitorName)
-                {
-                    monitorExists = true;
-                    break;
-                }
-            }
-            return monitorExists;
-        }
-
-        public List<MONITOR_INFO_2> EnumerateMonitors()
-        {
-            List<MONITOR_INFO_2> portMonitors = new List<MONITOR_INFO_2>();
-
-            uint pcbNeeded = 0;
-            uint pcReturned = 0;
-
-            if (!NativeMethods.EnumMonitors(null, 2, IntPtr.Zero, 0, ref pcbNeeded, ref pcReturned))
-            {
-                IntPtr pMonitors = Marshal.AllocHGlobal((int)pcbNeeded);
-                if (NativeMethods.EnumMonitors(null, 2, pMonitors, pcbNeeded, ref pcbNeeded, ref pcReturned))
-                {
-                    IntPtr currentMonitor = pMonitors;
-
-                    for (int i = 0; i < pcReturned; i++)
-                    {
-                        portMonitors.Add((MONITOR_INFO_2)Marshal.PtrToStructure(currentMonitor, typeof(MONITOR_INFO_2)));
-                        currentMonitor = IntPtr.Add(currentMonitor, Marshal.SizeOf(typeof(MONITOR_INFO_2)));
-                    }
-                    Marshal.FreeHGlobal(pMonitors);
-                }
-                else
-                {
-                    // Failed to retrieve enumerated monitors
-                    throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not enumerate port monitors.");
-                }
-            }
-            else
-            {
-                throw new Win32Exception(Marshal.GetLastWin32Error(), "Call to EnumMonitors in winspool.drv succeeded with a zero size buffer - unexpected error.");
-            }
-
-            return portMonitors;
         }
 
         #endregion Port Monitor
 
         #region Printer Install
 
-        public String RetrievePrinterDriverDirectory()
+        private String RetrievePrinterDriverDirectory()
         {
             StringBuilder driverDirectory = new StringBuilder(1024);
             int dirSizeInBytes = 0;
@@ -473,107 +305,64 @@ namespace miMonitor.SetupHelper.Driver
             return driverDirectory.ToString();
         }
 
-        private delegate bool undoInstall();
-
         /// <summary>
         /// Installs the port monitor, port,
         /// printer drivers, and miPDF virtual printer
         /// </summary>
         /// <param name="driverSourceDirectory">Directory where the uninstalled printer driver files are located</param>
-        /// <param name="driverFilesToCopy">An array containing the printer driver's filenames</param>
-        /// <param name="dependentFilesToCopy">An array containing dependent filenames</param>
         /// <returns>true if installation suceeds, false if failed</returns>
-        public bool InstallmiPDFconvertPrinter(String driverSourceDirectory, String outputHandlerCommand)
+        public bool InstallmiPDFconvertPrinter(String driverSourceDirectory)
         {
             bool printerInstalled = false;
 
-            Stack<undoInstall> undoInstallActions = new Stack<undoInstall>();
-
-            String driverDirectory = RetrievePrinterDriverDirectory();
-            undoInstallActions.Push(this.DeletemiPDFconvertPortMonitorDll);
-            ConfiguremiPDFconvertPort(outputHandlerCommand);
+            // Write the port configuration before the monitor DLL is loaded by the spooler
+            ConfiguremiPDFconvertPort();
             if (AddmiPDFconvertPortMonitor(driverSourceDirectory))
             {
                 Console.WriteLine("Port monitor successfully installed.");
-                undoInstallActions.Push(this.RemovemiPDFconvertPortMonitor);
                 if (CopyPrinterDriverFiles(driverSourceDirectory, printerDriverFiles.Concat(printerDriverDependentFiles).ToArray()))
                 {
                     Console.WriteLine("Printer drivers copied or already exist.");
-                    undoInstallActions.Push(this.RemovemiPDFconvertPortMonitor);
                     if (AddmiPDFconvertPort())
                     {
                         Console.WriteLine("Redirection port added.");
-                        undoInstallActions.Push(this.RemovemiPDFconvertPrinterDriver);
                         if (InstallmiPDFconvertPrinterDriver())
                         {
                             Console.WriteLine("Printer driver installed.");
-                            undoInstallActions.Push(this.DeletemiPDFconvertPrinter);
-                            if (AddmiPDFconvertPrinter())
+                            if (AddCustommiPDFconvertPrinter(PRINTERNAME))
                             {
                                 Console.WriteLine("Virtual printer installed.");
-                                undoInstallActions.Push(this.RemovemiPDFconvertPortConfig);
-                                if (ConfiguremiPDFconvertPort(outputHandlerCommand))
+                                if (ConfiguremiPDFconvertPort())
                                 {
                                     Console.WriteLine("Printer configured.");
                                     printerInstalled = true;
                                 }
                                 else
-                                    // Failed to configure port
                                     Console.WriteLine(INFO_INSTALLCONFIGPORT_FAILED);
                             }
                             else
-                                // Failed to install printer
                                 Console.WriteLine(INFO_INSTALLPRINTER_FAILED);
                         }
                         else
-                            // Failed to install printer driver
                             Console.WriteLine(INFO_INSTALLPRINTERDRIVER_FAILED);
                     }
                     else
-                        // Failed to add printer port
                         Console.WriteLine(INFO_INSTALLPORT_FAILED);
                 }
                 else
-                    //Failed to copy printer driver files
                     Console.WriteLine(INFO_INSTALLCOPYDRIVER_FAILED);
             }
             else
-                //Failed to add port monitor
                 Console.WriteLine(INFO_INSTALLPORTMONITOR_FAILED);
 
-            //if (printerInstalled == false)
-            //{
-            //    // Printer installation failed -
-            //    // undo all the install steps
-            //    while (undoInstallActions.Count > 0)
-            //    {
-            //        undoInstall undoAction = undoInstallActions.Pop();
-            //        try
-            //        {
-            //            if (!undoAction())
-            //            {
-            //                Console.WriteLine(String.Format(INSTALL_ROLLBACK_FAILURE_AT_FUNCTION, undoAction.Method.Name));
-            //            }
-            //        }
-            //        catch (Win32Exception win32Ex)
-            //        {
-            //            Console.WriteLine(String.Format(INSTALL_ROLLBACK_FAILURE_AT_FUNCTION, undoAction.Method.Name) +
-            //                                            String.Format(WIN32ERROR, win32Ex.ErrorCode.ToString()));
-            //        }
-            //    }
-            //}
             return printerInstalled;
         }
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <returns></returns>
         public bool UninstallmiPDFconvertPrinter()
         {
             bool printerUninstalledCleanly = true;
 
-            if (!DeletemiPDFconvertPrinter())
+            if (!DeleteCustommiPDFconvertPrinter(PRINTERNAME))
                 printerUninstalledCleanly = false;
             if (!RemovemiPDFconvertPrinterDriver())
                 printerUninstalledCleanly = false;
@@ -646,47 +435,12 @@ namespace miMonitor.SetupHelper.Driver
             return filesCopied;
         }
 
-        private bool DeletePrinterDriverFiles(String driverSourceDirectory,
-                                              String[] filesToDelete)
-        {
-            bool allFilesDeleted = true;
-            for (int loop = 0; loop < filesToDelete.Length; loop++)
-            {
-                try
-                {
-                    File.Delete(Path.Combine(driverSourceDirectory, filesToDelete[loop]));
-                }
-                catch
-                {
-                    allFilesDeleted = false;
-                }
-            }
-            return allFilesDeleted;
-        }
-
-#if DEBUG
-        public bool IsPrinterDriverInstalled_Test(String driverName)
-        {
-            return IsPrinterDriverInstalled(driverName);
-        }
-#endif
-
         private bool IsPrinterDriverInstalled(String driverName)
         {
-            bool driverInstalled = false;
-            List<DRIVER_INFO_6> installedDrivers = EnumeratePrinterDrivers();
-            foreach (DRIVER_INFO_6 printerDriver in installedDrivers)
-            {
-                if (printerDriver.pName == driverName)
-                {
-                    driverInstalled = true;
-                    break;
-                }
-            }
-            return driverInstalled;
+            return EnumeratePrinterDrivers().Any(printerDriver => printerDriver.pName == driverName);
         }
 
-        public List<DRIVER_INFO_6> EnumeratePrinterDrivers()
+        private List<DRIVER_INFO_6> EnumeratePrinterDrivers()
         {
             List<DRIVER_INFO_6> installedPrinterDrivers = new List<DRIVER_INFO_6>();
 
@@ -702,7 +456,6 @@ namespace miMonitor.SetupHelper.Driver
                     for (int loop = 0; loop < pcReturned; loop++)
                     {
                         installedPrinterDrivers.Add((DRIVER_INFO_6)Marshal.PtrToStructure(currentDriver, typeof(DRIVER_INFO_6)));
-                        //currentDriver = (IntPtr)(currentDriver.ToInt32() + Marshal.SizeOf(typeof(DRIVER_INFO_6)));
                         currentDriver = IntPtr.Add(currentDriver, Marshal.SizeOf(typeof(DRIVER_INFO_6)));
                     }
                     Marshal.FreeHGlobal(pDrivers);
@@ -723,72 +476,53 @@ namespace miMonitor.SetupHelper.Driver
 
         private bool InstallmiPDFconvertPrinterDriver()
         {
-            bool miPDFconvertPrinterDriverInstalled = false;
+            if (IsPrinterDriverInstalled(DRIVERNAME))
+                return true; // Driver is already installed, we'll just use the installed driver
 
-            if (!IsPrinterDriverInstalled(DRIVERNAME))
+            String driverSourceDirectory = RetrievePrinterDriverDirectory();
+
+            StringBuilder nullTerminatedDependentFiles = new StringBuilder();
+            if (printerDriverDependentFiles.Length > 0)
             {
-                String driverSourceDirectory = RetrievePrinterDriverDirectory();
-
-                StringBuilder nullTerminatedDependentFiles = new StringBuilder();
-                if (printerDriverDependentFiles.Length > 0)
+                for (int loop = 0; loop <= printerDriverDependentFiles.GetUpperBound(0); loop++)
                 {
-                    for (int loop = 0; loop <= printerDriverDependentFiles.GetUpperBound(0); loop++)
-                    {
-                        nullTerminatedDependentFiles.Append(printerDriverDependentFiles[loop]);
-                        nullTerminatedDependentFiles.Append("\0");
-                    }
+                    nullTerminatedDependentFiles.Append(printerDriverDependentFiles[loop]);
                     nullTerminatedDependentFiles.Append("\0");
                 }
-                else
-                {
-                    nullTerminatedDependentFiles.Append("\0\0");
-                }
-
-                DRIVER_INFO_6 printerDriverInfo = new DRIVER_INFO_6();
-
-                printerDriverInfo.cVersion = 3;
-                printerDriverInfo.pName = DRIVERNAME;
-                printerDriverInfo.pEnvironment = ENVIRONMENT;
-                printerDriverInfo.pDriverPath = Path.Combine(driverSourceDirectory, DRIVERFILE);
-                printerDriverInfo.pConfigFile = Path.Combine(driverSourceDirectory, DRIVERUIFILE);
-                printerDriverInfo.pHelpFile = Path.Combine(driverSourceDirectory, DRIVERHELPFILE);
-                printerDriverInfo.pDataFile = Path.Combine(driverSourceDirectory, DRIVERDATAFILE);
-                printerDriverInfo.pDependentFiles = nullTerminatedDependentFiles.ToString();
-
-                printerDriverInfo.pMonitorName = PORTMONITOR;
-                printerDriverInfo.pDefaultDataType = String.Empty;
-                printerDriverInfo.dwlDriverVersion = 0x0001000000000000U;
-                printerDriverInfo.pszMfgName = DRIVERMANUFACTURER;
-                printerDriverInfo.pszHardwareID = HARDWAREID;
-                printerDriverInfo.pszProvider = DRIVERMANUFACTURER;
-
-                miPDFconvertPrinterDriverInstalled = InstallPrinterDriver(ref printerDriverInfo);
+                nullTerminatedDependentFiles.Append("\0");
             }
             else
             {
-                miPDFconvertPrinterDriverInstalled = true; // Driver is already installed, we'll just use the installed driver
+                nullTerminatedDependentFiles.Append("\0\0");
             }
 
-            return miPDFconvertPrinterDriverInstalled;
-        }
+            DRIVER_INFO_6 printerDriverInfo = new DRIVER_INFO_6();
 
-        private bool InstallPrinterDriver(ref DRIVER_INFO_6 printerDriverInfo)
-        {
-            bool printerDriverInstalled = false;
+            printerDriverInfo.cVersion = 3;
+            printerDriverInfo.pName = DRIVERNAME;
+            printerDriverInfo.pEnvironment = ENVIRONMENT;
+            printerDriverInfo.pDriverPath = Path.Combine(driverSourceDirectory, DRIVERFILE);
+            printerDriverInfo.pConfigFile = Path.Combine(driverSourceDirectory, DRIVERUIFILE);
+            printerDriverInfo.pHelpFile = Path.Combine(driverSourceDirectory, DRIVERHELPFILE);
+            printerDriverInfo.pDataFile = Path.Combine(driverSourceDirectory, DRIVERDATAFILE);
+            printerDriverInfo.pDependentFiles = nullTerminatedDependentFiles.ToString();
 
-            printerDriverInstalled = NativeMethods.AddPrinterDriver(null, 6, ref printerDriverInfo);
-            if (printerDriverInstalled == false)
+            printerDriverInfo.pMonitorName = PORTMONITOR;
+            printerDriverInfo.pDefaultDataType = String.Empty;
+            printerDriverInfo.dwlDriverVersion = 0x0001000000000000U;
+            printerDriverInfo.pszMfgName = DRIVERMANUFACTURER;
+            printerDriverInfo.pszHardwareID = HARDWAREID;
+            printerDriverInfo.pszProvider = DRIVERMANUFACTURER;
+
+            if (!NativeMethods.AddPrinterDriver(null, 6, ref printerDriverInfo))
             {
                 Console.WriteLine("Could not add miPDFconvert printer driver. " +
                                           String.Format(WIN32ERROR, Marshal.GetLastWin32Error().ToString()));
+                return false;
             }
-            return printerDriverInstalled;
+            return true;
         }
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <returns></returns>
         public bool RemovemiPDFconvertPrinterDriver()
         {
             bool driverRemoved = NativeMethods.DeletePrinterDriverEx(null, ENVIRONMENT, DRIVERNAME, DPD_DELETE_UNUSED_FILES, 3);
@@ -798,34 +532,6 @@ namespace miMonitor.SetupHelper.Driver
                                           String.Format(WIN32ERROR, Marshal.GetLastWin32Error().ToString()));
             }
             return driverRemoved;
-        }
-
-        private bool AddmiPDFconvertPrinter()
-        {
-            bool printerAdded = false;
-            PRINTER_INFO_2 miPDFconvertPrinter = new PRINTER_INFO_2();
-
-            miPDFconvertPrinter.pServerName = null;
-            miPDFconvertPrinter.pPrinterName = PRINTERNAME;
-            miPDFconvertPrinter.pPortName = PORTNAME;
-            miPDFconvertPrinter.pDriverName = DRIVERNAME;
-            miPDFconvertPrinter.pPrintProcessor = PRINTPROCESOR;
-            miPDFconvertPrinter.pDatatype = "RAW";
-            miPDFconvertPrinter.Attributes = 0x00000041;
-
-            int miPDFconvertPrinterHandle = NativeMethods.AddPrinter(null, 2, ref miPDFconvertPrinter);
-            if (miPDFconvertPrinterHandle != 0)
-            {
-                // Added ok
-                int closeCode = NativeMethods.ClosePrinter((IntPtr)miPDFconvertPrinterHandle);
-                printerAdded = true;
-            }
-            else
-            {
-                Console.WriteLine("Could not add miPDFconvert virtual printer. " +
-                                          String.Format(WIN32ERROR, Marshal.GetLastWin32Error().ToString()));
-            }
-            return printerAdded;
         }
 
         public bool AddCustommiPDFconvertPrinter(string name)
@@ -845,7 +551,7 @@ namespace miMonitor.SetupHelper.Driver
             if (miPDFconvertPrinterHandle != 0)
             {
                 // Added ok
-                int closeCode = NativeMethods.ClosePrinter((IntPtr)miPDFconvertPrinterHandle);
+                NativeMethods.ClosePrinter((IntPtr)miPDFconvertPrinterHandle);
                 printerAdded = true;
             }
             else
@@ -854,36 +560,6 @@ namespace miMonitor.SetupHelper.Driver
                                   String.Format(WIN32ERROR, Marshal.GetLastWin32Error().ToString()));
             }
             return printerAdded;
-        }
-
-        private bool DeletemiPDFconvertPrinter()
-        {
-            bool printerDeleted = false;
-
-            PRINTER_DEFAULTS miPDFconvertDefaults = new PRINTER_DEFAULTS();
-            miPDFconvertDefaults.DesiredAccess = 0x000F000C; // All access
-            miPDFconvertDefaults.pDatatype = null;
-            miPDFconvertDefaults.pDevMode = IntPtr.Zero;
-
-            IntPtr miPDFconvertHandle = IntPtr.Zero;
-            try
-            {
-                if (NativeMethods.OpenPrinter(PRINTERNAME, ref miPDFconvertHandle, miPDFconvertDefaults) != 0)
-                {
-                    if (NativeMethods.DeletePrinter(miPDFconvertHandle))
-                        printerDeleted = true;
-                }
-                else
-                {
-                    Console.WriteLine("Could not delete miPDFconvert virtual printer. " +
-                                              String.Format(WIN32ERROR, Marshal.GetLastWin32Error().ToString()));
-                }
-            }
-            finally
-            {
-                if (miPDFconvertHandle != IntPtr.Zero) NativeMethods.ClosePrinter(miPDFconvertHandle);
-            }
-            return printerDeleted;
         }
 
         public bool DeleteCustommiPDFconvertPrinter(string name)
@@ -916,47 +592,11 @@ namespace miMonitor.SetupHelper.Driver
             return printerDeleted;
         }
 
-        public bool IsmiPDFconvertPrinterInstalled()
-        {
-            bool miPDFconvertInstalled = false;
-
-            PRINTER_DEFAULTS miPDFconvertDefaults = new PRINTER_DEFAULTS();
-            miPDFconvertDefaults.DesiredAccess = 0x00008; // Use access
-            miPDFconvertDefaults.pDatatype = null;
-            miPDFconvertDefaults.pDevMode = IntPtr.Zero;
-
-            IntPtr miPDFconvertHandle = IntPtr.Zero;
-            if (NativeMethods.OpenPrinter(PRINTERNAME, ref miPDFconvertHandle, miPDFconvertDefaults) != 0)
-            {
-                miPDFconvertInstalled = true;
-            }
-            else 
-            { 
-                int errorCode = Marshal.GetLastWin32Error();
-                if (errorCode == 0x5) miPDFconvertInstalled = true; // Printer is installed, but user
-                                                               // has no privileges to use it
-            }
-
-            return miPDFconvertInstalled;
-        }
-
         #endregion Printer Install
 
         #region Configuration and Registry changes
 
-#if DEBUG
-        public bool ConfiguremiPDFconvertPort_Test()
-        {
-            return ConfiguremiPDFconvertPort();
-        }
-#endif
-
         private bool ConfiguremiPDFconvertPort()
-        {
-            return ConfiguremiPDFconvertPort(String.Empty);
-        }
-
-        private bool ConfiguremiPDFconvertPort(String commandValue)
         {
             bool registryChangesMade = false;
             // Add all the registry info

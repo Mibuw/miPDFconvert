@@ -10,7 +10,6 @@
 
 using log4net;
 using log4net.Config;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace miPDFconvertBase
 {
@@ -27,11 +26,6 @@ namespace miPDFconvertBase
 
             string launcherPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
             string miPDFconvertPath = Path.Combine(Path.GetDirectoryName(launcherPath)!, "miPDFconvert.exe");
-            // Quote the executable path: it contains spaces ("Program Files (x86)"), and
-            // CreateProcessAsUser is called with lpApplicationName = null, so an unquoted path
-            // would be parsed ambiguously.
-            string miPDFconvertCommandLine = $"\"{miPDFconvertPath}\"{(string.IsNullOrEmpty(arguments) ? null : " " + arguments)}";
-           
 
             //INFODATAFILE parsing
             var clp = new CommandLineParser(args);
@@ -58,7 +52,10 @@ namespace miPDFconvertBase
                         {
                             string username = iniData["0"]["Username"];
                             LOGGER.Info($"miPDFConverBase found following user in inffile '{username}'");
-                            miPDFconvertCommandLine = $"\"{miPDFconvertPath}\"{(string.IsNullOrEmpty(arguments) ? null : " " + arguments)}";
+                            // Quote the executable path: it contains spaces ("Program Files (x86)"), and
+                            // CreateProcessAsUser is called with lpApplicationName = null, so an unquoted path
+                            // would be parsed ambiguously.
+                            string miPDFconvertCommandLine = $"\"{miPDFconvertPath}\" {arguments}";
                             string mainLogMessage = $"Trying to start miPDFconvert.exe application using '{miPDFconvertCommandLine}'";
                             LOGGER.Info(mainLogMessage);
                             ProcessUtils.LaunchUsingExplorerProcessOfUser(miPDFconvertCommandLine, username);

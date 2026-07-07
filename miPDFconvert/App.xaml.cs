@@ -14,7 +14,6 @@ using log4net;
 using log4net.Config;
 using Microsoft.Win32;
 using System.Configuration;
-using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -72,9 +71,9 @@ namespace miPDFconvert
             string psInputFilePath = String.Empty;
             string inputFileName = String.Empty;
 
-            string[]? args = Environment.GetCommandLineArgs(); // e.Args does not contain the executable name as first argument, so we use Environment.GetCommandLineArgs() here.
+            string[] args = Environment.GetCommandLineArgs(); // e.Args does not contain the executable name as first argument, so we use Environment.GetCommandLineArgs() here.
 
-            if ((args?.Length ?? 0) == 0)
+            if (args.Length == 0)
             {
                 LOGGER.Error("miPDFconvert started without any arguments! Use -ps followed by PostScript standard input stream or specify a PDF input file path as first argument.");
                 _ = MessageBox.Show("miPDFconvert started without any arguments! Use -ps followed by PostScript standard input stream or specify a PDF input file path as first argument.", "Error", MessageBoxButton.OK);
@@ -82,9 +81,7 @@ namespace miPDFconvert
                 return;
             }
 
-#pragma warning disable CS8604 // Mögliches Nullverweisargument.
             LOGGER.Info($"miPDFconvert started with the following arguments: {String.Join(" ", args.Select(arg => arg.Contains(" ") ? $"\"{arg}\"" : arg))}.");
-#pragma warning restore CS8604 // Mögliches Nullverweisargument.
 
             if (DoesCommandLineParameterExist(args, "-ps"))
             {
@@ -470,15 +467,13 @@ namespace miPDFconvert
                 LOGGER.Info("Importing PostScript document from console input stream...");
                 byte[]? psBinary = GetPostScriptDocumentFromInputStream();
 
-                if ((psBinary?.Length ?? 0) == 0)
+                if (psBinary == null || psBinary.Length == 0)
                 {
                     _ = MessageBox.Show("PostScript binary seems to be null", "Error", MessageBoxButton.OK);
                     return null;
                 }
 
-#pragma warning disable CS8602 // Dereferenzierung eines möglichen Nullverweises.
                 LOGGER.Info($"Imported PostScript document has {psBinary.Length} bytes length.");
-#pragma warning restore CS8602 // Dereferenzierung eines möglichen Nullverweises.
 
                 // Create document file for temporary testing purposes if turned on
                 if (createDocumentFiles)
@@ -645,9 +640,7 @@ namespace miPDFconvert
         {
             LOGGER.Debug("Determining input file encoding...");
             Encoding sourceDocumentEncoding = Encoding.UTF8;
-#pragma warning disable CS8600 // Das NULL-Literal oder ein möglicher NULL-Wert wird in einen Non-Nullable-Typ konvertiert.
-            string strSourceDocumentEncoding = ConfigurationManager.AppSettings[SOURCE_DOCUMENT_ENCODING_KEY];
-#pragma warning restore CS8600 // Das NULL-Literal oder ein möglicher NULL-Wert wird in einen Non-Nullable-Typ konvertiert.
+            string? strSourceDocumentEncoding = ConfigurationManager.AppSettings[SOURCE_DOCUMENT_ENCODING_KEY];
             if (!String.IsNullOrEmpty(strSourceDocumentEncoding))
             {
                 try
@@ -668,40 +661,36 @@ namespace miPDFconvert
 
         private static bool DoesCommandLineParameterExist(string[] args, string cmdArgNameLower)
         {
-            if ((args?.Length ?? 0) == 0)
-                return false;
-
-#pragma warning disable CS8604 // Mögliches Nullverweisargument.
-            return args.Any(arg => arg?.ToLower() == cmdArgNameLower);
-#pragma warning restore CS8604 // Mögliches Nullverweisargument.
+            return args.Any(arg => arg.ToLower() == cmdArgNameLower);
         }
 
         private static string GetValueFromCommandLineParameter(string[] args, string cmdArgNameLower)
         {
-            if ((args?.Length ?? 0) == 0)
-                return String.Empty;
+            var cmdArgIndex = Array.FindIndex(args, arg => arg.ToLower() == cmdArgNameLower);
 
-#pragma warning disable CS8604 // Mögliches Nullverweisargument.
-            var usernameCmdArgsIndex = Array.FindIndex(args, arg => arg?.ToLower() == cmdArgNameLower);
-#pragma warning restore CS8604 // Mögliches Nullverweisargument.
-
-            return usernameCmdArgsIndex >= 0 && args.Length > usernameCmdArgsIndex + 1 ? args[usernameCmdArgsIndex + 1] : String.Empty;
+            return cmdArgIndex >= 0 && args.Length > cmdArgIndex + 1 ? args[cmdArgIndex + 1] : String.Empty;
         }
 
         private static bool IsOldInstanceRunning()
         {
             Process currentProcess = Process.GetCurrentProcess();
-            Process[] miPDFconvertProcesses = Process.GetProcessesByName("miPDFconvert");
 
-            var earliestMiPDFconvertProcess = DateTime.Now;
+            foreach (Process prc in Process.GetProcessesByName("miPDFconvert"))
+            {
+                if (prc.Id == currentProcess.Id)
+                    continue;
+                try
+                {
+                    if (prc.StartTime < currentProcess.StartTime)
+                        return true;
+                }
+                catch
+                {
+                    // Process already exited or its start time is not accessible - ignore it.
+                }
+            }
 
-#pragma warning disable CS8602 // Dereferenzierung eines möglichen Nullverweises.
-            foreach (Process prc in miPDFconvertProcesses.Where(p => p.Id != currentProcess.Id && p.MainModule.FileName.Contains("miPDFconvert.exe")))
-                if (prc.StartTime < currentProcess.StartTime)
-                    earliestMiPDFconvertProcess = prc.StartTime;
-#pragma warning restore CS8602 // Dereferenzierung eines möglichen Nullverweises.
-
-            return earliestMiPDFconvertProcess < currentProcess.StartTime;
+            return false;
         }
 
         private static GhostscriptVersionInfo FindCorrectGhostscriptLibrary()

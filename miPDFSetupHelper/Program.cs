@@ -175,85 +175,42 @@ namespace miMonitor.SetupHelper
 
         private static void RegisterComInterface()
         {
-            if (Environment.Is64BitOperatingSystem)
-            {
-                CallRegAsmForShellWow6432("miPDFconvert.exe", "/codebase /tlb");
-            }
-            CallRegAsmForShell("miPDFconvert.exe", "/codebase /tlb");
+            CallRegAsm("miPDFconvert.exe", "/codebase /tlb");
         }
 
         private static void UnregisterComInterface()
         {
+            CallRegAsm("miPDFconvert.exe", "/unregister");
+        }
+
+        private static void CallRegAsm(string fileName, string parameters)
+        {
+            // Auf 64-Bit-Systemen in beiden Registry-Sichten (32- und 64-Bit) registrieren
             if (Environment.Is64BitOperatingSystem)
-            {
-                CallRegAsmForShellWow6432("miPDFconvert.exe", "/unregister");
-            }
-            CallRegAsmForShell("miPDFconvert.exe", "/unregister");
+                CallRegAsm(fileName, parameters, @"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\.NETFramework");
+            CallRegAsm(fileName, parameters, @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\.NETFramework");
         }
 
-        private static void CallRegAsmForShellWow6432(string fileName, string parameters)
+        private static void CallRegAsm(string fileName, string parameters, string dotNetFrameworkRegPath)
         {
-            var regAsmPathWow6432 = GetRegAsmPathWow6432();
+            Console.WriteLine(dotNetFrameworkRegPath);
 
-            var appDir = GetApplicationDirectory();
-            var shellDll = Path.Combine(appDir, fileName);
+            var dotNetPath = Registry.GetValue(dotNetFrameworkRegPath, "InstallRoot", null)?.ToString();
+            if (string.IsNullOrEmpty(dotNetPath))
+                throw new InvalidOperationException("Cannot find .Net Framework in " + dotNetFrameworkRegPath);
+            var regAsmPath = Path.Combine(dotNetPath, "v4.0.30319\\RegAsm.exe");
 
-            var shellExecuteHelper = new ShellExecuteHelper();
-
-            var paramString = $"\"{shellDll}\" {parameters}";
-            Console.WriteLine(regAsmPathWow6432 + " " + paramString);
-
-            var result = shellExecuteHelper.RunAsAdmin(regAsmPathWow6432, paramString);
-            Console.WriteLine(result.ToString());
-        }
-
-        private static void CallRegAsmForShell(string fileName, string parameters)
-        {
-            var regAsmPath = GetRegAsmPath();
-
-            var appDir = GetApplicationDirectory();
-            var shellDll = Path.Combine(appDir, fileName);
-
-            var shellExecuteHelper = new ShellExecuteHelper();
-
+            var shellDll = Path.Combine(GetApplicationDirectory(), fileName);
             var paramString = $"\"{shellDll}\" {parameters}";
             Console.WriteLine(regAsmPath + " " + paramString);
 
-            var result = shellExecuteHelper.RunAsAdmin(regAsmPath, paramString);
+            var result = new ShellExecuteHelper().RunAsAdmin(regAsmPath, paramString);
             Console.WriteLine(result.ToString());
-        }
-
-        private static string GetRegAsmPathWow6432()
-        {
-            var regPath = @"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\.NETFramework";
-
-            Console.WriteLine(regPath);
-
-            var dotNetPath = Registry.GetValue(regPath, "InstallRoot", null)?.ToString();
-
-            if (string.IsNullOrEmpty(dotNetPath))
-                throw new InvalidOperationException("Cannot find .Net Framework in HKLM\\" + regPath);
-
-            return Path.Combine(dotNetPath, "v4.0.30319\\RegAsm.exe");
-        }
-
-        private static string GetRegAsmPath()
-        {
-            var regPath = @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\.NETFramework";
-
-            Console.WriteLine(regPath);
-
-            var dotNetPath = Registry.GetValue(regPath, "InstallRoot", null)?.ToString();
-
-            if (string.IsNullOrEmpty(dotNetPath))
-                throw new InvalidOperationException("Cannot find .Net Framework in HKLM\\" + regPath);
-
-            return Path.Combine(dotNetPath, "v4.0.30319\\RegAsm.exe");
         }
 
         private static string GetApplicationDirectory()
         {
-            return new AssemblyHelper().GetCurrentAssemblyDirectory();
+            return AppDomain.CurrentDomain.BaseDirectory;
         }
     }
 }

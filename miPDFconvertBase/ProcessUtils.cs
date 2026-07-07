@@ -1,4 +1,4 @@
-﻿// miPDFconvert - virtual PDF printer
+// miPDFconvert - virtual PDF printer
 // Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)
 //
 // This program is free software: you can redistribute it and/or modify it
@@ -78,8 +78,6 @@ namespace miPDFconvertBase
 
     internal class ProcessUtils
     {
-        public static string _retString = string.Empty;
-
         const int STD_INPUT_HANDLE = -10;
 
         private static readonly ILog LOGGER = LogManager.GetLogger(typeof(ProcessUtils));
@@ -146,22 +144,6 @@ namespace miPDFconvertBase
 
         private const string EXPLORER_PROCESS_NAME = "explorer";
 
-        public static void LaunchUsingFirstExplorerProcess(string strCommandLine) // Works only in single user environment.
-        {
-            Process[] ps = Process.GetProcessesByName(EXPLORER_PROCESS_NAME);
-            LOGGER.Debug($"Detected {ps.Length} process(es) named \"{EXPLORER_PROCESS_NAME}\".");
-
-            if (ps.Length == 0)
-            {
-                LOGGER.Error($"No \"{EXPLORER_PROCESS_NAME}\" process found. Cannot launch POSconnect as logged on Windows user.");
-                return;
-            }
-
-            int nProcessId = ps[0].Id;
-            LOGGER.Debug($"First \"{EXPLORER_PROCESS_NAME}\" has ID {nProcessId}.");
-            Launch(strCommandLine, nProcessId);
-        }
-
         public static void LaunchUsingExplorerProcessOfUser(string strCommandLine, string strUserName)
         {
             Launch(strCommandLine, strUserName, EXPLORER_PROCESS_NAME);
@@ -176,7 +158,7 @@ namespace miPDFconvertBase
 
                 if (matchingProcess == null)
                 {
-                    LOGGER.Error($"No \"{strProcessName}\" process found. Cannot launch POSconnect as logged on Windows user.");
+                    LOGGER.Error($"No \"{strProcessName}\" process found. Cannot launch miPDFconvert as logged on Windows user.");
                     return;
                 }
 
@@ -196,14 +178,14 @@ namespace miPDFconvertBase
 
             if (nProcessId <= 1)
             {
-                LOGGER.Error($"Invalid process ID {nProcessId}! Cannot use it for launching POSconnect with \"{strCommandLine}\".");
+                LOGGER.Error($"Invalid process ID {nProcessId}! Cannot use it for launching miPDFconvert with \"{strCommandLine}\".");
                 return;
             }
 
             IntPtr token = GetPrimaryToken(nProcessId);
             if (token == IntPtr.Zero)
             {
-                LOGGER.Error($"Process {nProcessId} has no primary token! Cannot use it for launching POSconnect with \"{strCommandLine}\".");
+                LOGGER.Error($"Process {nProcessId} has no primary token! Cannot use it for launching miPDFconvert with \"{strCommandLine}\".");
                 return;
             }
 
@@ -256,7 +238,6 @@ namespace miPDFconvertBase
                 null,
                 ref startupInfo,
                 out processInfo);
-            _retString = startupInfo.hStdOutput.ToString();
 
             if (!result)
             {
@@ -329,14 +310,14 @@ namespace miPDFconvertBase
 
                             if (strOwner.EndsWith(strUsername, StringComparison.OrdinalIgnoreCase))
                             {
-                                LOGGER.Info($"Owner \"{strOwner}\" of process {process.Id} matches required user name \"{strUsername}\". Using this process for launching POSconnect.");
+                                LOGGER.Info($"Owner \"{strOwner}\" of process {process.Id} matches required user name \"{strUsername}\". Using this process for launching miPDFconvert.");
                                 return process;
                             }
 
-                            LOGGER.Debug($"      Owner \"{strOwner}\" does not match required user name \"{strUsername}\". Cannot use this process for launching POSconnect.");
+                            LOGGER.Debug($"      Owner \"{strOwner}\" does not match required user name \"{strUsername}\". Cannot use this process for launching miPDFconvert.");
                         }
                         else
-                            LOGGER.Debug($"      Primary token of process is 0. Cannot use this process for launching POSconnect.");
+                            LOGGER.Debug($"      Primary token of process is 0. Cannot use this process for launching miPDFconvert.");
                     }
                     catch (Exception ex)
                     {
