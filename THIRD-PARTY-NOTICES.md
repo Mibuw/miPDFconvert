@@ -60,80 +60,30 @@ miPDFconvert as a whole is distributed under AGPL v3.
 
 ## 3. Ghostscript (native engine)
 
-The PDF/PostScript conversion relies on the **Ghostscript** engine, invoked at
-runtime through the managed wrapper below.
+The PDF/PostScript conversion relies on the **Ghostscript** engine, which is
+invoked at runtime as a **separate process** (`gswin64c.exe` / `gswin32c.exe`)
+from the user's own Ghostscript installation. miPDFconvert does not bundle it and
+does not link against it in-process.
 
 - Copyright (C) Artifex Software, Inc.
 - Home: <https://www.ghostscript.com/>
 - **License: GNU Affero General Public License, version 3 (AGPL-3.0), OR a
   commercial license from Artifex Software, Inc.**
 
-**Obligation:** If you distribute the Ghostscript binaries (e.g. `gsdll32.dll`)
-together with miPDFconvert, the AGPL v3 applies to Ghostscript and its complete
-corresponding source must be made available — unless you have obtained a
-commercial license from Artifex. If you rely on AGPL Ghostscript in a networked
-service, AGPL §13 (remote-user source access) applies.
+**Obligation:** If you distribute the Ghostscript binaries together with
+miPDFconvert, the AGPL v3 applies to Ghostscript and its complete corresponding
+source must be made available — unless you have obtained a commercial license
+from Artifex. If you rely on AGPL Ghostscript in a networked service, AGPL §13
+(remote-user source access) applies.
 
 ---
 
-## 4. Ghostscript.Core.NET (managed wrapper)
-
-Managed .NET wrapper around the Ghostscript library; a .NET-Core-compatible fork
-of **Ghostscript.NET** (originally by Josip Habjan / ArtifexSoftware).
-
-- Package: <https://www.nuget.org/packages/Ghostscript.Core.NET> (v1.0.0)
-- **License: MIT.**
-
-The wrapper itself does **not** include the Ghostscript engine — see section 3
-for the engine's terms.
-
-MIT License text (template applies to the copyright holders of this package):
-
-```
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
----
-
-## 5. Apache log4net 3.2.0
+## 4. Apache log4net 3.3.2
 
 - Copyright © The Apache Software Foundation
 - Home: <https://logging.apache.org/log4net/>
 - **License: Apache License, Version 2.0.** Full text:
   [`licenses/Apache-2.0.txt`](licenses/Apache-2.0.txt).
-
----
-
-## 6. Common.Logging & Common.Logging.Core 3.4.1
-
-- Copyright © the Common Infrastructure Libraries for .NET authors
-- Source: <https://github.com/net-commons/common-logging>
-- **License: Apache License, Version 2.0.** Full text:
-  [`licenses/Apache-2.0.txt`](licenses/Apache-2.0.txt).
-
----
-
-## 7. System.ComponentModel 4.3.0
-
-- Copyright (c) .NET Foundation and Contributors
-- Source: <https://github.com/dotnet/runtime>
-- **License: MIT.** (See the MIT template in section 4.)
 
 ---
 
@@ -143,11 +93,8 @@ SOFTWARE.
 |-----------|---------|---------|----------|
 | miPortMon (mfilemon) | — | GPL-2.0-or-later | yes |
 | miPDFSetupHelper (clawPDF / PDFCreator) | — | AGPL-3.0 | yes |
-| Ghostscript (engine) | — | AGPL-3.0 or commercial | yes |
-| Ghostscript.Core.NET | 1.0.0 | MIT | no |
-| log4net | 3.2.0 | Apache-2.0 | no |
-| Common.Logging / .Core | 3.4.1 | Apache-2.0 | no |
-| System.ComponentModel | 4.3.0 | MIT | no |
+| Ghostscript (engine, external process) | — | AGPL-3.0 or commercial | yes |
+| log4net | 3.3.2 | Apache-2.0 | no |
 
 Because the project combines GPL-2.0-or-later and AGPL-3.0 components, the
 combined work **miPDFconvert** is distributed under **AGPL-3.0**, and its

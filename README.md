@@ -38,9 +38,9 @@ Application  ──►  "miPDFconvert" printer  ──►  print port monitor (m
 - **Ghostscript** — required for the PostScript → PDF conversion. Download and install it
   from the official site:
   **https://www.ghostscript.com/releases/gsdnld.html**
-  Install the AGPL release (or obtain a commercial license from Artifex). The printer runs
-  as an **x86 (32-bit)** process, so install the **32-bit** Ghostscript build (installing
-  both 32- and 64-bit is fine).
+  Install the AGPL release (or obtain a commercial license from Artifex). Either the
+  **32-bit or 64-bit** build works — Ghostscript is invoked as a separate process, so its
+  bitness does not have to match the application.
 - **.NET 8 Desktop Runtime** (bundled/installed by the setup if missing).
 
 ## Installation
@@ -59,7 +59,7 @@ winget install mipdfconvert
 choco install mipdfconvert
 ```
 
-> Ghostscript (32-bit) still needs to be installed separately (see [Requirements](#requirements)). Newly submitted versions can take a few days to appear while they pass winget/Chocolatey moderation.
+> Ghostscript (32-bit or 64-bit) still needs to be installed separately (see [Requirements](#requirements)). Newly submitted versions can take a few days to appear while they pass winget/Chocolatey moderation.
 
 ### Manual
 
@@ -79,7 +79,6 @@ directory), under `<appSettings>`:
 |-----|---------|-------------|
 | **`TARGET_APPLICATION`** | *(empty)* | Path or name of an application that should **automatically receive the generated PDF** as a command-line argument. A relative path/bare file name is resolved against the install directory first. **Leave empty to get a *Save As* dialog instead.** |
 | `CREATE_DOCUMENT_FILES` | `false` | If `true`, keep the temporary PostScript file in `%TEMP%`. |
-| `SOURCE_DOCUMENT_ENCODING` | *(empty = UTF-8)* | Encoding of the source document, e.g. `Windows-1252`. |
 | `PDF_SETTINGS` | `/printer` | Ghostscript quality preset: `/printer` (300 dpi, fast), `/prepress` (max quality/size), `/ebook` (150 dpi), `/screen` (72 dpi, smallest). |
 
 ### Defining a target application
@@ -103,8 +102,9 @@ back to a *Save As* dialog.
 
 Prerequisites:
 
-- **Visual Studio 2022** Build Tools with the **C++ (v143)** toolset (for the native print
-  monitor) and the **.NET desktop** workload.
+- **Visual Studio 2022** Build Tools with the **C++ (v145)** toolset (for the native print
+  monitor) and the **.NET desktop** workload. Override with `-PlatformToolset` if you have a
+  different version installed (e.g. `v143`/`v144`).
 - **.NET 8 SDK**.
 - **Inno Setup 6** — https://jrsoftware.org/isdl.php (for building the installer).
 
@@ -157,9 +157,8 @@ Third-party components and their licenses are documented in
 
 - **mfilemon** (print port monitor) — GPL-2.0-or-later
 - **clawPDF / PDFCreator** (setup helper & architecture) — AGPL-3.0
-- **Ghostscript** (PDF engine, installed separately) — AGPL-3.0 or commercial (Artifex)
-- **log4net**, **Common.Logging** — Apache-2.0
-- **Ghostscript.Core.NET**, **System.ComponentModel** — MIT
+- **Ghostscript** (PDF engine, installed separately, invoked as an external process) — AGPL-3.0 or commercial (Artifex)
+- **log4net** — Apache-2.0
 
 > **Note on Ghostscript:** miPDFconvert does not bundle Ghostscript; it must be installed
 > separately by the user. If you choose to redistribute the Ghostscript binaries with your
