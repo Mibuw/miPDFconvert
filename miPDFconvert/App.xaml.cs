@@ -8,8 +8,6 @@
 // See the GNU AGPL v3 (LICENSE file) for details and THIRD-PARTY-NOTICES.md
 // for the licenses of bundled components.
 
-using Ghostscript.NET;
-using Ghostscript.NET.Processor;
 using log4net;
 using log4net.Config;
 using Microsoft.Win32;
@@ -32,7 +30,6 @@ namespace miPDFconvert
 
         private const string DOCUMENT_TARGET_KEY = "TARGET_APPLICATION";
         private const string CREATE_FILES_KEY = "CREATE_DOCUMENT_FILES";
-        private const string SOURCE_DOCUMENT_ENCODING_KEY = "SOURCE_DOCUMENT_ENCODING";
         private const string PDF_SETTINGS_KEY = "PDF_SETTINGS";
         private const string DEFAULT_PDF_SETTINGS = "/printer";
         public void App_Startup(object sender, StartupEventArgs e)
@@ -619,55 +616,104 @@ namespace miPDFconvert
         }
 
         /// <summary>
-        /// Converts a PostScript document to PDF using Ghostscript.
-        /// Exactly one of <paramref name="psFilePath"/> or <paramref name="postscriptDocument"/>
-        /// must be supplied. When a file path is given, Ghostscript reads it directly (fast path);
-        /// otherwise the in-memory bytes are streamed through StdIn.
+        /// Converts a PostScript document to PDF by invoking the installed Ghostscript executable
+        /// as an external process. Exactly one of <paramref name="psFilePath"/> or
+        /// <paramref name="postscriptDocument"/> must be supplied.
+        ///
+        /// Running Ghostscript out-of-process (instead of loading gsdllXX.dll into this process)
+        /// makes the conversion independent of this application's bitness: a 32-bit process can
+        /// drive a 64-bit Ghostscript and vice versa, so whichever build the user installed works.
         /// </summary>
         private static byte[]? ConvertPS2Pdf(string? psFilePath, byte[]? postscriptDocument)
         {
-            bool fromFile = !String.IsNullOrEmpty(psFilePath);
-
-            GhostscriptPipedOutput? gsPipedOutput = null;
+            string? tempPsFile = null;
+            string tempPdfFile = Path.Combine(Path.GetTempPath(), $"miPDFconvert_gs_{Guid.NewGuid():N}.pdf");
             try
             {
-                LOGGER.Debug("Creating GhostScript piped output handle...");
-                gsPipedOutput = new GhostscriptPipedOutput();
-                string outputPipeHandle = "%handle%" + int.Parse(gsPipedOutput.ClientHandle).ToString("X2");
-
-                LOGGER.Debug("Preparing GhostScript command...");
-                using (var gsProcessor = new GhostscriptProcessor(FindCorrectGhostscriptLibrary()))
+                string inputPsPath;
+                if (!String.IsNullOrEmpty(psFilePath))
                 {
-                    var switches = BuildGhostscriptSwitches(outputPipeHandle);
-
-                    GhostscriptStdIO gsIOHandler;
-                    if (fromFile)
-                    {
-                        // Input comes from the file itself; StdIn is not used.
-                        switches.Add("-f");
-                        switches.Add(psFilePath!);
-                        gsIOHandler = new ConsoleStdIO(Array.Empty<byte>(), Encoding.UTF8);
-                    }
-                    else
-                    {
-                        switches.Add("-_"); // read PostScript from StdIn
-                        gsIOHandler = new ConsoleStdIO(postscriptDocument!, DetermineSourceEncoding());
-                    }
-
-                    LOGGER.Info($"Converting PostScript document to PDF (switches: {String.Join(" ", switches)})...");
-                    gsProcessor.StartProcessing([.. switches], gsIOHandler);
-                    LOGGER.Debug("Conversion finished without errors.");
-                    return gsPipedOutput.Data;
+                    inputPsPath = psFilePath!;
                 }
+                else
+                {
+                    // stdin mode: persist the raw bytes to a temp .ps so Ghostscript reads them
+                    // directly - no encoding guesswork, the binary PostScript is preserved exactly.
+                    tempPsFile = Path.Combine(Path.GetTempPath(), $"miPDFconvert_gs_{Guid.NewGuid():N}.ps");
+                    File.WriteAllBytes(tempPsFile, postscriptDocument!);
+                    inputPsPath = tempPsFile;
+                }
+
+                string gsExecutable = FindGhostscriptExecutable();
+
+                List<string> switches = BuildGhostscriptSwitches(tempPdfFile);
+                switches.Add("-f");
+                switches.Add(inputPsPath);
+
+                LOGGER.Info($"Converting PostScript to PDF via \"{gsExecutable}\" (switches: {String.Join(" ", switches)})...");
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = gsExecutable,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                foreach (string s in switches)
+                    psi.ArgumentList.Add(s);
+
+                using (Process? gsProcess = Process.Start(psi))
+                {
+                    if (gsProcess == null)
+                    {
+                        LOGGER.Error($"Could not start Ghostscript process \"{gsExecutable}\".");
+                        return null;
+                    }
+
+                    // Read both streams asynchronously to avoid a pipe-buffer deadlock.
+                    Task<string> stdoutTask = gsProcess.StandardOutput.ReadToEndAsync();
+                    Task<string> stderrTask = gsProcess.StandardError.ReadToEndAsync();
+
+                    if (!gsProcess.WaitForExit(120000))
+                    {
+                        LOGGER.Error("Ghostscript did not finish within 120 s - terminating it.");
+                        try { gsProcess.Kill(true); } catch { }
+                        return null;
+                    }
+                    gsProcess.WaitForExit(); // ensure the async stdout/stderr readers have flushed
+
+                    string stdout = stdoutTask.GetAwaiter().GetResult();
+                    string stderr = stderrTask.GetAwaiter().GetResult();
+                    if (!String.IsNullOrWhiteSpace(stdout)) LOGGER.Debug($"Ghostscript output: {stdout.Trim()}");
+                    if (!String.IsNullOrWhiteSpace(stderr)) LOGGER.Debug($"Ghostscript messages: {stderr.Trim()}");
+
+                    if (gsProcess.ExitCode != 0)
+                    {
+                        LOGGER.Error($"Ghostscript exited with code {gsProcess.ExitCode}.");
+                        return null;
+                    }
+                }
+
+                if (!File.Exists(tempPdfFile))
+                {
+                    LOGGER.Error("Ghostscript did not produce an output PDF file.");
+                    return null;
+                }
+
+                byte[] pdf = File.ReadAllBytes(tempPdfFile);
+                LOGGER.Debug("Conversion finished without errors.");
+                return pdf;
             }
             catch (Exception ex)
             {
-                LOGGER.Error($"Exception when converting PostScript document to PDF format:", ex);
+                LOGGER.Error("Exception when converting PostScript document to PDF format:", ex);
                 return null;
             }
             finally
             {
-                gsPipedOutput?.Dispose();
+                try { if (tempPsFile != null && File.Exists(tempPsFile)) File.Delete(tempPsFile); } catch { }
+                try { if (File.Exists(tempPdfFile)) File.Delete(tempPdfFile); } catch { }
             }
         }
 
@@ -677,7 +723,7 @@ namespace miPDFconvert
         /// (default <c>/printer</c>). Use <c>/prepress</c> for maximum quality/size,
         /// <c>/ebook</c> or <c>/screen</c> for smaller/faster output.
         /// </summary>
-        private static List<string> BuildGhostscriptSwitches(string outputPipeHandle)
+        private static List<string> BuildGhostscriptSwitches(string outputPdfPath)
         {
             string pdfSettings = ConfigurationManager.AppSettings[PDF_SETTINGS_KEY] ?? DEFAULT_PDF_SETTINGS;
             if (String.IsNullOrWhiteSpace(pdfSettings))
@@ -703,36 +749,8 @@ namespace miPDFconvert
                 // Use all available cores for any rasterization work.
                 "-dNumRenderingThreads=" + Environment.ProcessorCount,
                 "-sDEVICE=pdfwrite",
-                "-o" + outputPipeHandle
+                "-sOutputFile=" + outputPdfPath
             };
-        }
-
-        /// <summary>
-        /// Determines the encoding used to feed in-memory PostScript through StdIn
-        /// (only relevant for the console-input path). Default is UTF-8, overridable
-        /// via the <c>SOURCE_DOCUMENT_ENCODING</c> app setting.
-        /// </summary>
-        private static Encoding DetermineSourceEncoding()
-        {
-            LOGGER.Debug("Determining input file encoding...");
-            Encoding sourceDocumentEncoding = Encoding.UTF8;
-            string? strSourceDocumentEncoding = ConfigurationManager.AppSettings[SOURCE_DOCUMENT_ENCODING_KEY];
-            if (!String.IsNullOrEmpty(strSourceDocumentEncoding))
-            {
-                try
-                {
-                    sourceDocumentEncoding = Encoding.GetEncoding(strSourceDocumentEncoding);
-                    LOGGER.Debug($"Assuming {sourceDocumentEncoding} encoding for source document as configured by the {SOURCE_DOCUMENT_ENCODING_KEY} setting.");
-                }
-                catch (Exception ex)
-                {
-                    LOGGER.Error($"Exception when trying to instantiate source document encoding \"{strSourceDocumentEncoding}\" as configured by the {SOURCE_DOCUMENT_ENCODING_KEY} setting!", ex);
-                }
-            }
-            else
-                LOGGER.Debug($"Assuming {sourceDocumentEncoding} encoding for source document since no specific {SOURCE_DOCUMENT_ENCODING_KEY} setting is configured.");
-
-            return sourceDocumentEncoding;
         }
 
         private static bool DoesCommandLineParameterExist(string[] args, string cmdArgNameLower)
@@ -769,76 +787,68 @@ namespace miPDFconvert
             return false;
         }
 
-        private static GhostscriptVersionInfo FindCorrectGhostscriptLibrary()
+        /// <summary>
+        /// Locates the installed Ghostscript console executable (gswin64c.exe / gswin32c.exe).
+        /// Scans both registry views (64- and 32-bit) and the GPL and Artifex products, derives
+        /// the bin directory from each registered GS_DLL and picks the highest version whose
+        /// console executable exists, preferring the 64-bit build. Because Ghostscript runs as a
+        /// separate process, its bitness is independent of this application's - either build works.
+        /// </summary>
+        private static string FindGhostscriptExecutable()
         {
-            int platformBits = Environment.Is64BitProcess ? 64 : 32;
+            var candidates = new List<(Version version, string exePath, bool is64)>();
 
-            // Try application directory first...
-            string gsDllPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"gsdll{platformBits}.dll");
-            if (File.Exists(gsDllPath))
+            foreach (RegistryView view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
             {
-                LOGGER.Debug($"    Using local Ghostscript DLL \"{gsDllPath}\" for creating PDF document.");
-                return new GhostscriptVersionInfo(new Version(0, 0, 0), gsDllPath, string.Empty, GhostscriptLicense.GPL);
+                foreach (string product in new[] { "GPL Ghostscript", "Artifex Ghostscript" })
+                {
+                    try
+                    {
+                        using RegistryKey baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view);
+                        using RegistryKey? productKey = baseKey.OpenSubKey($@"SOFTWARE\{product}");
+                        if (productKey == null)
+                            continue;
+
+                        foreach (string versionName in productKey.GetSubKeyNames())
+                        {
+                            using RegistryKey? versionKey = productKey.OpenSubKey(versionName);
+                            string? dll = versionKey?.GetValue("GS_DLL") as string;
+                            string? binDir = String.IsNullOrEmpty(dll) ? null : Path.GetDirectoryName(dll);
+                            if (String.IsNullOrEmpty(binDir))
+                                continue;
+
+                            bool is64 = dll!.EndsWith("gsdll64.dll", StringComparison.OrdinalIgnoreCase);
+                            string[] exeNames = is64
+                                ? new[] { "gswin64c.exe", "gswin64.exe" }
+                                : new[] { "gswin32c.exe", "gswin32.exe" };
+
+                            foreach (string exeName in exeNames)
+                            {
+                                string exePath = Path.Combine(binDir, exeName);
+                                if (File.Exists(exePath))
+                                {
+                                    Version version = Version.TryParse(versionName, out Version? v) ? v : new Version(0, 0, 0);
+                                    candidates.Add((version, exePath, is64));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LOGGER.Debug($"    Could not read registry for \"{product}\" ({view}): {ex.Message}");
+                    }
+                }
             }
 
-            // Otherwise look into the registry for a DLL path...
-            LOGGER.Warn($"No local GhostScript DLL exists as \"{gsDllPath}\"! Looking for an installed {platformBits}-bit version in the registry...");
-            try
-            {
-                GhostscriptVersionInfo gsVersionInfo = GhostscriptVersionInfo.GetLastInstalledVersion(GhostscriptLicense.GPL | GhostscriptLicense.AFPL, GhostscriptLicense.GPL);
-                LOGGER.Warn($"    Registered Ghostscript DLL found with path \"{gsVersionInfo.DllPath}\". Trying this one.");
-                return gsVersionInfo;
-            }
-            catch (GhostscriptLibraryNotInstalledException)
-            {
-                LOGGER.Error($"Could not find a {platformBits}-bit Ghostscript DLL neither in application directory (as {gsDllPath}) nor as registered library!");
-                throw;
-            }
-            catch
-            {
-                LOGGER.Error($"General exception when looking for a {platformBits}-bit Ghostscript DLL in application directory (as {gsDllPath}) or as registered library!");
-                throw;
-            }
-        }
+            if (candidates.Count == 0)
+                throw new InvalidOperationException(
+                    "Ghostscript is not installed. Please install Ghostscript (32-bit or 64-bit) from https://www.ghostscript.com/releases/gsdnld.html.");
 
-        private class ConsoleStdIO : GhostscriptStdIO
-        {
-            private static readonly ILog LOGGER = LogManager.GetLogger(typeof(ConsoleStdIO));
-
-            private readonly string _psDocumentString;
-            private int _nextInputStartIndex = 0;
-
-            public ConsoleStdIO(byte[] psDocumentBinary, Encoding documentEncoding) : base(true, true, true)
-            {
-                _psDocumentString = documentEncoding.GetString(psDocumentBinary);
-                LOGGER.Debug($"Initializing {nameof(ConsoleStdIO)} object with PostScript document in {documentEncoding} with length of {_psDocumentString.Length} bytes.");
-            }
-
-            public override void StdIn(out string input, int count)
-            {
-                LOGGER.Debug($"{count} input characters requested...");
-
-                if (_nextInputStartIndex >= _psDocumentString.Length)
-                    input = String.Empty; // Start index already after end of document.
-                else if (_nextInputStartIndex + count >= _psDocumentString.Length)
-                    input = _psDocumentString.Substring(_nextInputStartIndex); // Reaching the end of document. Only provide the characters left.
-                else
-                    input = _psDocumentString.Substring(_nextInputStartIndex, count); // Full count can be provided to stdin.
-
-                LOGGER.Debug($"   Providing {input.Length} input characters{(input.Length > 0 ? $"({_nextInputStartIndex} to {_nextInputStartIndex + input.Length - 1})" : "")} to GhostScript standard input.");
-
-                _nextInputStartIndex += input.Length;
-            }
-
-            public override void StdOut(string output)
-            {
-                LOGGER.Debug($"GhostScript output: {output}");
-            }
-
-            public override void StdError(string error)
-            {
-                LOGGER.Error($"GhostScript error: {error}");
-            }
+            // Highest version wins; on a tie prefer the 64-bit build.
+            var best = candidates.OrderByDescending(c => c.version).ThenByDescending(c => c.is64).First();
+            LOGGER.Info($"    Using Ghostscript executable \"{best.exePath}\" (version {best.version}).");
+            return best.exePath;
         }
 
     }
