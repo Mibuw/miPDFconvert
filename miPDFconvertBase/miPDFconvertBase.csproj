@@ -11,7 +11,7 @@
     <ApplicationIcon>miPDFconvert.ico</ApplicationIcon>
     <Copyright>Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)</Copyright>
     <Company>Wolfgang Mitterbucher</Company>
-    <Version>1.0.4</Version>
+    <Version>1.0.3</Version>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
   </PropertyGroup>
 

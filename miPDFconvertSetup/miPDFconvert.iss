@@ -15,7 +15,7 @@
 ; ============================================================================
 
 #define MyAppName        "miPDFconvert"
-#define MyAppVersion     "1.0.4"
+#define MyAppVersion     "1.0.3"
 #define MyAppPublisher   "Wolfgang Mitterbucher"
 #define MyAppURL         "https://mitterbucher.com"
 ; UpgradeCode aus dem alten vdproj -> gleiche AppId sorgt fuer saubere Updates
