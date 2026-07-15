@@ -55,11 +55,19 @@ namespace miPDFconvertBase
                     return;
                 }
 
-                // The monitor writes the spool file path into the inf; fall back to the
-                // inf path with .ps extension for older monitor versions.
-                string psFile = job.TryGetValue("SpoolFileName", out string? spoolFileName) && !string.IsNullOrWhiteSpace(spoolFileName)
-                    ? spoolFileName
-                    : Path.ChangeExtension(infFile, ".ps");
+                // The spool .ps sits next to the .inf in the spool directory. SpoolFileName in
+                // the inf is only a bare file name (the monitor does not write a full path), so
+                // it MUST be resolved against the inf's directory - never against the current
+                // working directory (which is the install folder). The inf and ps share the same
+                // GUID base, so ChangeExtension is the reliable fallback.
+                string spoolDir = Path.GetDirectoryName(infFile)!;
+                string psFile;
+                if (job.TryGetValue("SpoolFileName", out string? spoolFileName) && !string.IsNullOrWhiteSpace(spoolFileName))
+                    psFile = Path.IsPathRooted(spoolFileName)
+                        ? spoolFileName
+                        : Path.Combine(spoolDir, Path.GetFileName(spoolFileName));
+                else
+                    psFile = Path.ChangeExtension(infFile, ".ps");
 
                 // Rename the spool file to the (sanitized) document title. The job id makes the
                 // name unique: without it, printing the same document twice in a row fails,
@@ -71,7 +79,7 @@ namespace miPDFconvertBase
                 string rawTitle = Path.GetFileNameWithoutExtension(rawDocumentTitle ?? "");
                 string uniqueSuffix = string.IsNullOrWhiteSpace(jobId) ? DateTime.Now.ToString("HHmmssfff") : jobId;
                 string documentTitle = SanitizeFileName(rawTitle) + "_" + uniqueSuffix + ".ps";
-                string targetPsPath = Path.Combine(Path.GetDirectoryName(psFile)!, documentTitle);
+                string targetPsPath = Path.Combine(spoolDir, documentTitle);
                 LOGGER.Info($"Renaming spool file \"{psFile}\" to \"{targetPsPath}\".");
                 File.Move(psFile, targetPsPath, true);
                 psFile = targetPsPath;
