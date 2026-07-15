@@ -60,9 +60,20 @@ namespace miPDFconvert
             {
                 WriteStartupTrace("XmlConfigurator.Configure() failed (log4net logging will be unavailable): " + ex);
             }
-            // Check if there is another miPDFconvert process running, if so, we have to wait until it is closed.
+            CleanupOldTempPdfFiles();
+
+            // Check if there is another miPDFconvert process running, if so, wait until it is
+            // closed. The wait is bounded: a single hung instance (unanswered dialog, Ghostscript
+            // stuck on malformed PostScript) must not silently block every following print job
+            // forever - after the timeout we continue and serve this job anyway.
+            var instanceWait = Stopwatch.StartNew();
             while (IsOldInstanceRunning())
             {
+                if (instanceWait.Elapsed.TotalSeconds > 60)
+                {
+                    LOGGER.Warn("An older miPDFconvert instance is still running after 60 s - continuing anyway.");
+                    break;
+                }
                 LOGGER.Debug("Waiting for old miPDFconvert processes to end...");
                 Thread.Sleep(300);
             }
@@ -71,12 +82,15 @@ namespace miPDFconvert
             string psInputFilePath = String.Empty;
             string inputFileName = String.Empty;
 
-            string[] args = Environment.GetCommandLineArgs(); // e.Args does not contain the executable name as first argument, so we use Environment.GetCommandLineArgs() here.
+            // Environment.GetCommandLineArgs()[0] is the executable path itself - skip it, the
+            // remaining elements are the real arguments (like e.Args, but also available when
+            // the app is launched via CreateProcessAsUser).
+            string[] args = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
             if (args.Length == 0)
             {
                 LOGGER.Error("miPDFconvert started without any arguments! Use -ps followed by PostScript standard input stream or specify a PDF input file path as first argument.");
-                _ = MessageBox.Show("miPDFconvert started without any arguments! Use -ps followed by PostScript standard input stream or specify a PDF input file path as first argument.", "Error", MessageBoxButton.OK);
+                ShowErrorMessage("miPDFconvert started without any arguments! Use -ps followed by PostScript standard input stream or specify a PDF input file path as first argument.");
                 Environment.Exit(1);
                 return;
             }
@@ -96,7 +110,7 @@ namespace miPDFconvert
                 if (String.IsNullOrEmpty(psInputFilePath))
                 {
                     LOGGER.Error($"miPDFconvert argument '-psfile' requires a PostScript file path as next argument!");
-                    _ = MessageBox.Show("miPDFconvert argument '-psfile' requires a PostScript file path as next argument!", "Error", MessageBoxButton.OK);
+                    ShowErrorMessage("miPDFconvert argument '-psfile' requires a PostScript file path as next argument!");
                     Environment.Exit(1);
                     return;
                 }
@@ -112,6 +126,22 @@ namespace miPDFconvert
             }
             Boolean.TryParse(ConfigurationManager.AppSettings[CREATE_FILES_KEY], out bool createDocumentFiles);
             byte[]? pdf = GetPdfDocument(pdfInputFilePath, psInputFilePath, createDocumentFiles);
+
+            // The renamed spool file is consumed once the PDF exists - delete it so the spool
+            // directory does not grow unbounded (nobody else cleans it up).
+            if (pdf != null && !String.IsNullOrEmpty(psInputFilePath))
+            {
+                try
+                {
+                    File.Delete(psInputFilePath);
+                    LOGGER.Debug($"Spool file \"{psInputFilePath}\" deleted.");
+                }
+                catch (Exception ex)
+                {
+                    LOGGER.Warn($"Could not delete spool file \"{psInputFilePath}\": {ex.Message}");
+                }
+            }
+
             ProcessInput(pdf, inputFileName, createDocumentFiles);
         }
 
@@ -220,8 +250,10 @@ namespace miPDFconvert
 
                     // Try to start target application with PDF document as argument
                     LOGGER.Info($"Passing PDF document to target application \"{resolvedTarget}\"...");
-                    // Create temporary file for PDF document
-                    string tempPdfFilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.pdf");
+                    // Create temporary file for PDF document. The "miPDFconvert_" prefix lets
+                    // CleanupOldTempPdfFiles identify and remove stale files on later runs
+                    // (the file cannot be deleted right away - the target application reads it).
+                    string tempPdfFilePath = Path.Combine(Path.GetTempPath(), $"miPDFconvert_{Guid.NewGuid():N}.pdf");
                     File.WriteAllBytes(tempPdfFilePath, pdf);
                     LOGGER.Debug($"Temporary PDF file created as \"{tempPdfFilePath}\".");
                     try
@@ -244,7 +276,7 @@ namespace miPDFconvert
                         {
                             foregroundOwner.Close();
                             LOGGER.Error($"Could not start target application \"{resolvedTarget}\"!");
-                            _ = MessageBox.Show($"Could not start target application \"{resolvedTarget}\"!", "Error", MessageBoxButton.OK);
+                            ShowErrorMessage($"Could not start target application \"{resolvedTarget}\"!");
                             Environment.Exit(1);
                         }
                         else
@@ -263,7 +295,7 @@ namespace miPDFconvert
                     catch (Exception ex)
                     {
                         LOGGER.Error($"Exception when starting target application \"{resolvedTarget}\": ", ex);
-                        _ = MessageBox.Show($"Exception when starting target application \"{resolvedTarget}\": ", "Error", MessageBoxButton.OK);
+                        ShowErrorMessage($"Exception when starting target application \"{resolvedTarget}\": {ex.Message}");
                         Environment.Exit(1);
                     }
                 }
@@ -271,7 +303,7 @@ namespace miPDFconvert
             catch (Exception ex)
             {
                 LOGGER.Error($"Exception when passing PDF to target application: ", ex);
-                _ = MessageBox.Show("Exception when passing PDF to target application", "Error", MessageBoxButton.OK); 
+                ShowErrorMessage($"Exception when passing PDF to target application: {ex.Message}");
                 Environment.Exit(1);
             }
             finally
@@ -303,6 +335,50 @@ namespace miPDFconvert
             ownerWindow.Show();
             ownerWindow.Activate();
             return ownerWindow;
+        }
+
+        /// <summary>
+        /// Shows an error message box on top of other windows. Without a topmost owner the
+        /// box would belong to a background process and could appear hidden behind other
+        /// applications - the user would never see the error and the print job would seem
+        /// to vanish silently.
+        /// </summary>
+        private static void ShowErrorMessage(string message)
+        {
+            Window ownerWindow = CreateTopmostOwnerWindow();
+            try
+            {
+                _ = MessageBox.Show(ownerWindow, message, "miPDFconvert", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                ownerWindow.Close();
+            }
+        }
+
+        /// <summary>
+        /// Removes temporary PDF files from earlier runs (target application mode). They cannot
+        /// be deleted when they are created - the launched target application still reads them -
+        /// so each new run cleans up files older than one day. Never throws.
+        /// </summary>
+        private static void CleanupOldTempPdfFiles()
+        {
+            try
+            {
+                foreach (string file in Directory.EnumerateFiles(Path.GetTempPath(), "miPDFconvert_*.pdf"))
+                {
+                    try
+                    {
+                        if (File.GetLastWriteTimeUtc(file) < DateTime.UtcNow.AddDays(-1))
+                        {
+                            File.Delete(file);
+                            LOGGER.Debug($"Old temporary PDF \"{file}\" deleted.");
+                        }
+                    }
+                    catch { /* file may be in use - try again on a later run */ }
+                }
+            }
+            catch { /* cleanup must never break printing */ }
         }
 
         #region Native foreground helpers
@@ -442,8 +518,8 @@ namespace miPDFconvert
                 }
                 catch (Exception ex)
                 {
-                    LOGGER.Error($"Exception when reading PostScript input document from \"{pdfFilePath}\":", ex);
-                    _ = MessageBox.Show($"Exception when reading PostScript input document from \"{pdfFilePath}\":", "Error", MessageBoxButton.OK);  
+                    LOGGER.Error($"Exception when reading PDF input document from \"{pdfFilePath}\":", ex);
+                    ShowErrorMessage($"Exception when reading PDF input document from \"{pdfFilePath}\": {ex.Message}");
                     return null;
                 }
             }
@@ -469,7 +545,7 @@ namespace miPDFconvert
 
                 if (psBinary == null || psBinary.Length == 0)
                 {
-                    _ = MessageBox.Show("PostScript binary seems to be null", "Error", MessageBoxButton.OK);
+                    ShowErrorMessage("No PostScript data was received from the standard input stream.");
                     return null;
                 }
 
@@ -499,7 +575,7 @@ namespace miPDFconvert
             if ((createdPdfBinary?.Length ?? 0) == 0)
             {
                 LOGGER.Error("No PDF document could be created from PostScript document!");
-                _ = MessageBox.Show("No PDF document could be created from PostScript document!", "Error", MessageBoxButton.OK);
+                ShowErrorMessage("No PDF document could be created from PostScript document!");
                 return null;
             }
 

@@ -264,7 +264,8 @@ namespace miPDFconvertBase
                     CloseHandle(processInfo.hThread);
             }
 
-            CloseHandle(stdinHandle);
+            // Note: the handle from GetStdHandle(STD_INPUT_HANDLE) must NOT be closed -
+            // it is the process's own standard handle, not a duplicate.
 
             return result;
         }
@@ -305,16 +306,29 @@ namespace miPDFconvertBase
                         IntPtr primaryToken = GetPrimaryToken(process.Id);
                         if (primaryToken != IntPtr.Zero)
                         {
-                            var windowsIdentity = new WindowsIdentity(primaryToken);
-                            string strOwner = windowsIdentity.Name.Trim();
-
-                            if (strOwner.EndsWith(strUsername, StringComparison.OrdinalIgnoreCase))
+                            try
                             {
-                                LOGGER.Info($"Owner \"{strOwner}\" of process {process.Id} matches required user name \"{strUsername}\". Using this process for launching miPDFconvert.");
-                                return process;
-                            }
+                                // WindowsIdentity duplicates the token internally, so ours can be
+                                // closed in the finally block regardless of the outcome.
+                                using var windowsIdentity = new WindowsIdentity(primaryToken);
+                                string strOwner = windowsIdentity.Name.Trim();
 
-                            LOGGER.Debug($"      Owner \"{strOwner}\" does not match required user name \"{strUsername}\". Cannot use this process for launching miPDFconvert.");
+                                // Compare the account name (part after "DOMAIN\") exactly - a
+                                // suffix match like EndsWith would let user "ann" match "Hermann"
+                                // and launch the dialog into the wrong session.
+                                string accountName = strOwner.Substring(strOwner.LastIndexOf('\\') + 1);
+                                if (accountName.Equals(strUsername, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    LOGGER.Info($"Owner \"{strOwner}\" of process {process.Id} matches required user name \"{strUsername}\". Using this process for launching miPDFconvert.");
+                                    return process;
+                                }
+
+                                LOGGER.Debug($"      Owner \"{strOwner}\" does not match required user name \"{strUsername}\". Cannot use this process for launching miPDFconvert.");
+                            }
+                            finally
+                            {
+                                CloseHandle(primaryToken);
+                            }
                         }
                         else
                             LOGGER.Debug($"      Primary token of process is 0. Cannot use this process for launching miPDFconvert.");
