@@ -1,4 +1,4 @@
-﻿// miPDFconvert - virtual PDF printer
+// miPDFconvert - virtual PDF printer
 // Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)
 //
 // This program is free software: you can redistribute it and/or modify it
@@ -10,12 +10,14 @@
 
 using log4net;
 using log4net.Config;
+using System.Text;
 
 namespace miPDFconvertBase
 {
     public class Program
     {
         private static readonly ILog LOGGER = LogManager.GetLogger(typeof(Program));
+
         static void Main(string[] args)
         {
             args ??= Array.Empty<string>();
@@ -27,52 +29,93 @@ namespace miPDFconvertBase
             string launcherPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
             string miPDFconvertPath = Path.Combine(Path.GetDirectoryName(launcherPath)!, "miPDFconvert.exe");
 
-            //INFODATAFILE parsing
             var clp = new CommandLineParser(args);
-            if (clp.HasArgument("INFODATAFILE"))
+            if (!clp.HasArgument("INFODATAFILE"))
             {
-                try
-                {
-                    string infFile = clp.GetArgument("INFODATAFILE");
+                LOGGER.Warn("No /INFODATAFILE argument given - nothing to do.");
+                return;
+            }
 
-                    if (File.Exists(infFile))
-                    {
-                        Dictionary<string, Dictionary<string, string>> iniData = ReadIniFile(infFile);
-                        string psFile = infFile.Replace(".inf",".ps");
-                        string clientComputer = iniData["0"]["ClientComputer"];
-                        //move ps file to document title name (sanitized, overwriting any leftover)
-                        string rawTitle = Path.GetFileNameWithoutExtension(iniData["0"]["DocumentTitle"]);
-                        string documentTitle = SanitizeFileName(rawTitle) + ".ps";
-                        string targetPsPath = Path.Combine(Path.GetDirectoryName(psFile)!, documentTitle);
-                        LOGGER.Info($"Renaming spool file \"{psFile}\" to \"{targetPsPath}\".");
-                        File.Move(psFile, targetPsPath, true);
-                        psFile = targetPsPath;
-                        arguments = $"-psfile \"{psFile}\"";
-                        if (clientComputer.ToLower() == Environment.MachineName.ToLower())
-                        {
-                            string username = iniData["0"]["Username"];
-                            LOGGER.Info($"miPDFConverBase found following user in inffile '{username}'");
-                            // Quote the executable path: it contains spaces ("Program Files (x86)"), and
-                            // CreateProcessAsUser is called with lpApplicationName = null, so an unquoted path
-                            // would be parsed ambiguously.
-                            string miPDFconvertCommandLine = $"\"{miPDFconvertPath}\" {arguments}";
-                            string mainLogMessage = $"Trying to start miPDFconvert.exe application using '{miPDFconvertCommandLine}'";
-                            LOGGER.Info(mainLogMessage);
-                            ProcessUtils.LaunchUsingExplorerProcessOfUser(miPDFconvertCommandLine, username);
-                        }
-                        else
-                        {
-                            //maybe network interaction is required
-                            LOGGER.Info($"Skipping launch of miPDFconvertBase as ClientComputer '{clientComputer}' does not match local machine name '{Environment.MachineName}'");
-                        }
-                    }
-                    Environment.Exit(0);
-                }
-                catch (Exception ex)
+            string infFile = clp.GetArgument("INFODATAFILE");
+            bool deleteInfFile = false;
+            try
+            {
+                if (!File.Exists(infFile))
                 {
-                    LOGGER.Error("Exception while processing INFODATAFILE and launching miPDFconvert.", ex);
-                    Console.WriteLine(ex);
+                    LOGGER.Error($"INFODATAFILE \"{infFile}\" does not exist. Cannot process print job.");
                     Environment.ExitCode = 1;
+                    return;
+                }
+
+                Dictionary<string, Dictionary<string, string>> iniData = ReadIniFile(infFile);
+                if (!iniData.TryGetValue("0", out Dictionary<string, string>? job))
+                {
+                    LOGGER.Error($"INFODATAFILE \"{infFile}\" contains no [0] section. Cannot process print job.");
+                    Environment.ExitCode = 1;
+                    return;
+                }
+
+                // The monitor writes the spool file path into the inf; fall back to the
+                // inf path with .ps extension for older monitor versions.
+                string psFile = job.TryGetValue("SpoolFileName", out string? spoolFileName) && !string.IsNullOrWhiteSpace(spoolFileName)
+                    ? spoolFileName
+                    : Path.ChangeExtension(infFile, ".ps");
+
+                // Rename the spool file to the (sanitized) document title. The job id makes the
+                // name unique: without it, printing the same document twice in a row fails,
+                // because the first conversion still has "<title>.ps" open when the second job
+                // tries to overwrite it - the job would be dropped without any visible error.
+                // The suffix also defuses reserved device names (CON, PRN, ...) as titles.
+                job.TryGetValue("DocumentTitle", out string? rawDocumentTitle);
+                job.TryGetValue("JobId", out string? jobId);
+                string rawTitle = Path.GetFileNameWithoutExtension(rawDocumentTitle ?? "");
+                string uniqueSuffix = string.IsNullOrWhiteSpace(jobId) ? DateTime.Now.ToString("HHmmssfff") : jobId;
+                string documentTitle = SanitizeFileName(rawTitle) + "_" + uniqueSuffix + ".ps";
+                string targetPsPath = Path.Combine(Path.GetDirectoryName(psFile)!, documentTitle);
+                LOGGER.Info($"Renaming spool file \"{psFile}\" to \"{targetPsPath}\".");
+                File.Move(psFile, targetPsPath, true);
+                psFile = targetPsPath;
+
+                job.TryGetValue("ClientComputer", out string? clientComputer);
+                clientComputer = (clientComputer ?? "").TrimStart('\\');
+                if (clientComputer.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase))
+                {
+                    deleteInfFile = true;
+                    string username = job.TryGetValue("Username", out string? user) ? user : "";
+                    LOGGER.Info($"miPDFconvertBase found following user in inffile '{username}'");
+                    // Quote the executable path: it contains spaces ("Program Files (x86)"), and
+                    // CreateProcessAsUser is called with lpApplicationName = null, so an unquoted path
+                    // would be parsed ambiguously.
+                    string miPDFconvertCommandLine = $"\"{miPDFconvertPath}\" -psfile \"{psFile}\"";
+                    LOGGER.Info($"Trying to start miPDFconvert.exe application using '{miPDFconvertCommandLine}'");
+                    ProcessUtils.LaunchUsingExplorerProcessOfUser(miPDFconvertCommandLine, username);
+                }
+                else
+                {
+                    //maybe network interaction is required - keep the inf file around in that case
+                    LOGGER.Info($"Skipping launch of miPDFconvertBase as ClientComputer '{clientComputer}' does not match local machine name '{Environment.MachineName}'");
+                }
+            }
+            catch (Exception ex)
+            {
+                LOGGER.Error("Exception while processing INFODATAFILE and launching miPDFconvert.", ex);
+                Console.WriteLine(ex);
+                Environment.ExitCode = 1;
+            }
+            finally
+            {
+                // The inf file is fully consumed at this point - clean it up so the spool
+                // directory does not grow unbounded.
+                if (deleteInfFile)
+                {
+                    try
+                    {
+                        File.Delete(infFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        LOGGER.Warn($"Could not delete INFODATAFILE \"{infFile}\": {ex.Message}");
+                    }
                 }
             }
         }
@@ -91,7 +134,15 @@ namespace miPDFconvertBase
             Dictionary<string, Dictionary<string, string>> iniData = new Dictionary<string, Dictionary<string, string>>();
             string currentSection = "";
 
-            foreach (string line in File.ReadAllLines(filePath))
+            // The monitor writes the inf via WritePrivateProfileStringW into a BOM-less file,
+            // i.e. in the system ANSI code page - NOT UTF-8. Reading it as UTF-8 garbles
+            // umlauts in Username/DocumentTitle (a user like "Müller" would never match an
+            // explorer process and the job would be dropped). A BOM, if ever present, still
+            // takes precedence over the passed encoding.
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            Encoding ansi = Encoding.GetEncoding(0); // 0 = system default ANSI code page
+
+            foreach (string line in File.ReadAllLines(filePath, ansi))
             {
                 string trimmedLine = line.Trim();
 
