@@ -16,7 +16,7 @@
 
 #define MyAppName        "miPDFconvert"
 #define MyAppVersion     "1.0.2"
-#define MyAppPublisher   "miPDF"
+#define MyAppPublisher   "Wolfgang Mitterbucher"
 #define MyAppURL         "https://mitterbucher.com"
 ; UpgradeCode aus dem alten vdproj -> gleiche AppId sorgt fuer saubere Updates
 #define MyAppId          "{{CC40866C-933B-4003-B1D2-73B281E517F9}"
@@ -45,7 +45,7 @@ AppContact={#MyAppURL}
 VersionInfoVersion={#MyAppVersion}
 ; Installation nach "Program Files (x86)\miPDF\miPDFconvert"
 ; (App ist x86 -> Setup laeuft im 32-Bit-Modus, {autopf} = Program Files (x86))
-DefaultDirName={autopf}\{#MyAppPublisher}\{#MyAppName}
+DefaultDirName={autopf32}\miPDF\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 ; Per-Machine Installation, Adminrechte werden benoetigt (Treiber + COM)
