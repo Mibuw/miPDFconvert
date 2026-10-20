@@ -15,7 +15,7 @@ folder and inline below.
 
 > **Note:** This file documents license obligations to the best of our knowledge.
 > It is not legal advice. Verify obligations for your specific distribution
-> (especially if you ship the Ghostscript engine) with qualified counsel.
+> with qualified counsel.
 
 ---
 
@@ -61,20 +61,45 @@ miPDFconvert as a whole is distributed under AGPL v3.
 ## 3. Ghostscript (native engine)
 
 The PDF/PostScript conversion relies on the **Ghostscript** engine, which is
-invoked at runtime as a **separate process** (`gswin64c.exe` / `gswin32c.exe`)
-from the user's own Ghostscript installation. miPDFconvert does not bundle it and
-does not link against it in-process.
+invoked at runtime as a **separate process** (`gswin64c.exe` / `gswin32c.exe`).
+miPDFconvert does not link against it in-process.
+
+The installer **bundles Ghostscript 10.08.0** in `<install dir>\gs`: the
+**unmodified** binaries `gswin64c.exe`/`gsdll64.dll` (or `gswin32c.exe`/`gsdll32.dll`)
+extracted from the official Artifex Windows installers, together with
+Ghostscript's license text (`gs\COPYING`) and a notice on where to obtain the
+source (`gs\README.txt`). The exact version and SHA256 hashes are pinned in
+`build.ps1`.
 
 - Copyright (C) Artifex Software, Inc.
 - Home: <https://www.ghostscript.com/>
-- **License: GNU Affero General Public License, version 3 (AGPL-3.0), OR a
-  commercial license from Artifex Software, Inc.**
+- **License: GNU Affero General Public License, version 3 (AGPL-3.0)** — used
+  here under the AGPL (Artifex also offers a commercial license).
+- **Corresponding source:** the complete source of the bundled version
+  (`ghostscript-10.08.0.tar.xz`) is attached to the corresponding miPDFconvert
+  [GitHub release](https://github.com/Mibuw/miPDFconvert/releases) and is also
+  available from Artifex at
+  <https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/tag/gs10080>.
 
-**Obligation:** If you distribute the Ghostscript binaries together with
-miPDFconvert, the AGPL v3 applies to Ghostscript and its complete corresponding
-source must be made available — unless you have obtained a commercial license
-from Artifex. If you rely on AGPL Ghostscript in a networked service, AGPL §13
-(remote-user source access) applies.
+"Ghostscript" is a trademark of Artifex Software, Inc. miPDFconvert is not
+affiliated with or endorsed by Artifex.
+
+If a newer Ghostscript is installed on the system, the bundled copy is still
+used; a system installation is only used as a fallback when the bundled copy is
+missing.
+
+---
+
+## 3a. Microsoft Visual C++ Runtime (app-local, for Ghostscript)
+
+`vcruntime140.dll`, `vcruntime140_1.dll` (x64 only) and `msvcp140.dll` are
+placed next to the bundled Ghostscript so it runs without a system-wide Visual
+C++ Redistributable of matching bitness.
+
+- Copyright (C) Microsoft Corporation
+- **License:** redistributable files of Microsoft Visual Studio ("Distributable
+  Code", taken from the Visual Studio `VC\Redist` folder), distributed under the
+  Visual Studio license terms.
 
 ---
 
@@ -93,7 +118,8 @@ from Artifex. If you rely on AGPL Ghostscript in a networked service, AGPL §13
 |-----------|---------|---------|----------|
 | miPortMon (mfilemon) | — | GPL-2.0-or-later | yes |
 | miPDFSetupHelper (clawPDF / PDFCreator) | — | AGPL-3.0 | yes |
-| Ghostscript (engine, external process) | — | AGPL-3.0 or commercial | yes |
+| Ghostscript (engine, bundled, external process) | 10.08.0 | AGPL-3.0 | yes |
+| Microsoft Visual C++ Runtime (app-local) | 14.x | VS redistributable | no |
 | log4net | 3.3.2 | Apache-2.0 | no |
 
 Because the project combines GPL-2.0-or-later and AGPL-3.0 components, the

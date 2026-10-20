@@ -4,7 +4,9 @@
 ;
 ;  Bildet alles nach, was das alte Setup geboten hat:
 ;    * Installiert die komplette Publish-Ausgabe (miPDFconvert, miPDFconvertBase,
-;      SetupHelper, Ghostscript gsdll32/64, alle Abhaengigkeiten)
+;      SetupHelper, alle Abhaengigkeiten)
+;    * Liefert Ghostscript (AGPL, unveraenderte Artifex-Binaries) privat unter
+;      {app}\gs mit - keine separate Ghostscript-Installation mehr noetig
 ;    * Legt die Druckertreiber-Dateien unter miMonitor\x86 und miMonitor\x64 ab
 ;    * Ruft SetupHelper.exe fuer die Treiber-Installation auf
 ;    * Prueft die Voraussetzungen (VC++ Redistributable 14, .NET 8 Desktop Runtime)
@@ -15,7 +17,7 @@
 ; ============================================================================
 
 #define MyAppName        "miPDFconvert"
-#define MyAppVersion     "1.0.3"
+#define MyAppVersion     "1.1.0"
 #define MyAppPublisher   "Wolfgang Mitterbucher"
 #define MyAppURL         "https://mitterbucher.com"
 ; UpgradeCode aus dem alten vdproj -> gleiche AppId sorgt fuer saubere Updates
@@ -27,6 +29,8 @@
 #define LibWin64Dir      "..\lib\miMonitor\Win64"
 #define PortMonWin32Dir  "..\miPortMon\miMonitor\Release\Win32"
 #define PortMonWin64Dir  "..\miPortMon\miMonitor\Release\x64"
+; wird von build.ps1 (Ensure-Ghostscript) bereitgestellt
+#define GhostscriptDir   "..\build\ghostscript"
 
 ; Downloadlinks fuer fehlende Voraussetzungen
 #define VCRedistUrl      "https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist#visual-studio-2015-2017-2019-and-2022"
@@ -77,8 +81,20 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 [Files]
 ; --- Hauptanwendung: komplette Publish-Ausgabe nach {app} ---
 ;     enthaelt miPDFconvert.exe, miPDFconvertBase.exe, SetupHelper.exe,
-;     gsdll32.dll, gsdll64.dll, alle abhaengigen DLLs, configs und runtimes\
+;     alle abhaengigen DLLs, configs und runtimes\
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: "*.pdb"
+
+; --- Ghostscript (privat nach {app}\gs\bin, inkl. app-lokaler VC++-Runtime) ---
+;     64-Bit-Build auf x64 und ARM64 (Windows 11 emuliert x64), sonst der
+;     32-Bit-Build (32-Bit-Windows, Windows 10 on ARM).
+Source: "{#GhostscriptDir}\x64\*"; DestDir: "{app}\gs\bin"; Check: IsX64Compatible; Flags: ignoreversion
+Source: "{#GhostscriptDir}\x86\*"; DestDir: "{app}\gs\bin"; Check: not IsX64Compatible; Flags: ignoreversion
+Source: "{#GhostscriptDir}\COPYING";    DestDir: "{app}\gs"; Flags: ignoreversion
+Source: "{#GhostscriptDir}\README.txt"; DestDir: "{app}\gs"; Flags: ignoreversion
+
+; --- Lizenz und Drittanbieter-Hinweise ---
+Source: "..\LICENSE";                DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
+Source: "..\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 
 ; --- Programmsymbol ---
 Source: "miPDFconvert.ico"; DestDir: "{app}"; Flags: ignoreversion

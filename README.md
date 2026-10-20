@@ -35,13 +35,13 @@ Application  ──►  "miPDFconvert" printer  ──►  print port monitor (m
 ## Requirements
 
 - **Windows** 10/11 (x64 or ARM64).
-- **Ghostscript** — required for the PostScript → PDF conversion. Download and install it
-  from the official site:
-  **https://www.ghostscript.com/releases/gsdnld.html**
-  Install the AGPL release (or obtain a commercial license from Artifex). Either the
-  **32-bit or 64-bit** build works — Ghostscript is invoked as a separate process, so its
-  bitness does not have to match the application.
 - **.NET 8 Desktop Runtime** (bundled/installed by the setup if missing).
+
+**Ghostscript is included** — since version 1.1.0 the installer ships the unmodified
+Ghostscript binaries (AGPL release by Artifex) in a private folder (`<install dir>\gs`),
+so nothing has to be installed separately. The 64-bit build is used on x64/ARM64, the
+32-bit build elsewhere. If the bundled copy is missing (e.g. when running a development
+build), miPDFconvert falls back to a Ghostscript installed on the system (32- or 64-bit).
 
 ## Installation
 
@@ -59,16 +59,15 @@ winget install mipdfconvert
 choco install mipdfconvert
 ```
 
-> Ghostscript (32-bit or 64-bit) still needs to be installed separately (see [Requirements](#requirements)). Newly submitted versions can take a few days to appear while they pass winget/Chocolatey moderation.
+> Ghostscript is bundled — no separate installation needed. Newly submitted versions can take a few days to appear while they pass winget/Chocolatey moderation.
 
 ### Manual
 
-1. Install **Ghostscript** (see above).
-2. Run the installer `miPDFconvertSetup.exe`. During setup you can optionally choose a
+1. Run the installer `miPDFconvertSetup.exe`. During setup you can optionally choose a
    **target application** that should automatically receive the generated PDF — the selected
    path is written to `TARGET_APPLICATION` in `miPDFconvert.dll.config` (leave it empty for a
    *Save As* dialog; changeable later).
-3. Print to the **miPDFconvert** printer from any application.
+2. Print to the **miPDFconvert** printer from any application.
 
 ## Configuration
 
@@ -107,6 +106,8 @@ Prerequisites:
   different version installed (e.g. `v143`/`v144`).
 - **.NET 8 SDK**.
 - **Inno Setup 6** — https://jrsoftware.org/isdl.php (for building the installer).
+- **7-Zip** — https://www.7-zip.org (to extract the Ghostscript binaries from the official
+  Artifex installers).
 
 Build everything (native DLLs → SetupHelper → apps → installer) with the included script:
 
@@ -123,6 +124,13 @@ Useful switches: `-SkipNative` (skip the C++ projects), `-SkipSetup` (binaries o
 > These are **not** redistributed in this repository — `build.ps1` copies them from the
 > local Windows driver store into `lib\miMonitor\...` automatically before packaging the
 > installer. Only the project's own `ghostpdf.ppd` is tracked in the repository.
+
+> **Ghostscript:** `build.ps1` downloads the official Ghostscript Windows installers and the
+> source tarball for the version pinned at the top of the script, verifies their SHA256
+> hashes, and extracts only `gswinXXc.exe` + `gsdllXX.dll` (init files and fonts are compiled
+> in) plus the license into `build\ghostscript`. The app-local Visual C++ runtime DLLs are
+> taken from the Visual Studio `Redist` folder. To update Ghostscript (e.g. for a security
+> fix), change the version, tag and hashes in `build.ps1` and rebuild.
 
 ### Code signing (optional)
 
@@ -157,12 +165,15 @@ Third-party components and their licenses are documented in
 
 - **mfilemon** (print port monitor) — GPL-2.0-or-later
 - **clawPDF / PDFCreator** (setup helper & architecture) — AGPL-3.0
-- **Ghostscript** (PDF engine, installed separately, invoked as an external process) — AGPL-3.0 or commercial (Artifex)
+- **Ghostscript** (PDF engine, bundled unmodified, invoked as an external process) — AGPL-3.0
+- **Microsoft Visual C++ runtime** (app-local, for Ghostscript) — Microsoft redistributable
 - **log4net** — Apache-2.0
 
-> **Note on Ghostscript:** miPDFconvert does not bundle Ghostscript; it must be installed
-> separately by the user. If you choose to redistribute the Ghostscript binaries with your
-> own distribution, the AGPL (or a commercial Artifex license) applies to Ghostscript as well.
+> **Note on Ghostscript:** The installer bundles the unmodified Ghostscript binaries under
+> the AGPL v3. The complete corresponding source code of the bundled version is attached to
+> every [GitHub release](https://github.com/Mibuw/miPDFconvert/releases)
+> (`ghostscript-<version>.tar.xz`) and is also available from
+> [Artifex](https://github.com/ArtifexSoftware/ghostpdl-downloads/releases).
 
 This project is not affiliated with or endorsed by clawSoft, pdfforge, or Artifex Software.
 

@@ -9,9 +9,10 @@
       1. Native Druckermonitor-DLLs (miMonitor, miMonitorUI) - Release Win32 + x64
       2. SetupHelper (.NET Framework)            -> build\publish
       3. miPDFconvert + miPDFconvertBase (Publish) -> build\publish
-      4. Inno Setup (miPDFconvert.iss)           -> miPDFconvertSetup\Release\miPDFconvertSetup.exe
+      4. Ghostscript (offizielle Artifex-Binaries, unveraendert) -> build\ghostscript
+      5. Inno Setup (miPDFconvert.iss)           -> miPDFconvertSetup\Release\miPDFconvertSetup.exe
 
-    MSBuild und der Inno-Compiler (ISCC.exe) werden automatisch gesucht.
+    MSBuild, der Inno-Compiler (ISCC.exe) und 7-Zip werden automatisch gesucht.
 
 .PARAMETER Configuration
     Build-Konfiguration (Standard: Release).
@@ -73,6 +74,21 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+
+# ---------------------------------------------------------------------------
+#  Mitgeliefertes Ghostscript (AGPL-3.0) - feste Version, per SHA256 geprueft.
+#  Bei einem Ghostscript-Update (v. a. Sicherheits-Fixes) nur diesen Block
+#  anpassen. Hashes stehen im jeweiligen Release unter
+#  https://github.com/ArtifexSoftware/ghostpdl-downloads/releases
+# ---------------------------------------------------------------------------
+$GhostscriptVersion = '10.08.0'
+$GhostscriptTag     = 'gs10080'
+$GhostscriptFiles   = @{
+    'gs10080w64.exe'             = '52a91b8bf09298788d7a57b9206127026c23eacd75405f0a131e26dc381dce50'
+    'gs10080w32.exe'             = '42f9e97ea2580bc24e2604cc03a2213bdba6094869dbe9f8ede50f8dd86b7463'
+    # Quellcode - wird als "Corresponding Source" (AGPL) mit dem Release veroeffentlicht
+    'ghostscript-10.08.0.tar.xz' = 'c20492bc8ebb96c87fa2e52a0926e1cda8cde95d66145e018ac713fed5da38cf'
+}
 
 # ---------------------------------------------------------------------------
 #  Hilfsfunktionen
@@ -155,6 +171,102 @@ function Ensure-DriverFiles {
             Write-Host "    $f" -ForegroundColor DarkGray
         }
     }
+}
+
+function Find-7Zip {
+    $cmd = Get-Command 7z.exe -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    foreach ($c in @((Join-Path $env:ProgramFiles '7-Zip\7z.exe'), (Join-Path ${env:ProgramFiles(x86)} '7-Zip\7z.exe'))) {
+        if (Test-Path $c) { return $c }
+    }
+    throw '7z.exe (7-Zip) wurde nicht gefunden. Wird zum Entpacken der Ghostscript-Installer benoetigt (https://www.7-zip.org).'
+}
+
+function Find-VCRedistCrt([string]$arch) {
+    # App-lokale VC++-Laufzeit fuer Ghostscript aus dem Redist-Ordner von Visual Studio
+    # (offiziell weitergebbare Dateien) - so laeuft das mitgelieferte Ghostscript auch
+    # ohne systemweit installiertes VC++ Redistributable der passenden Bitness.
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (Test-Path $vswhere) {
+        $vsPath = & $vswhere -latest -products * -property installationPath | Select-Object -First 1
+        if ($vsPath) {
+            $crt = Get-ChildItem (Join-Path $vsPath 'VC\Redist\MSVC') -Directory -ErrorAction SilentlyContinue |
+                   Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
+                   Sort-Object { [version]$_.Name } -Descending |
+                   ForEach-Object { Get-ChildItem (Join-Path $_.FullName $arch) -Directory -Filter 'Microsoft.VC*.CRT' -ErrorAction SilentlyContinue } |
+                   Select-Object -First 1
+            if ($crt) { return $crt.FullName }
+        }
+    }
+    throw "VC++-Redist-Dateien ($arch) nicht gefunden. Bitte Visual Studio mit C++-Workload installieren."
+}
+
+function Ensure-Ghostscript {
+    # Laedt die offiziellen Ghostscript-Installer (fest eingestellte Version, SHA256-geprueft)
+    # in einen Cache unter build\ghostscript\download und entpackt daraus nur die Dateien,
+    # die zur Laufzeit gebraucht werden: gswinXXc.exe + gsdllXX.dll (Init-Dateien und
+    # Fonts sind dort einkompiliert) sowie den Lizenztext. Die Binaries bleiben unveraendert.
+    $gsRoot   = Join-Path $root 'build\ghostscript'
+    $cacheDir = Join-Path $gsRoot 'download'
+    if (-not (Test-Path $cacheDir)) { New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null }
+
+    Write-Step "Ghostscript $GhostscriptVersion bereitstellen"
+    foreach ($file in $GhostscriptFiles.Keys) {
+        $target = Join-Path $cacheDir $file
+        if (-not (Test-Path $target)) {
+            $url = "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/$GhostscriptTag/$file"
+            Write-Host "    Download $url" -ForegroundColor DarkGray
+            Invoke-WebRequest -Uri $url -OutFile "$target.part" -UseBasicParsing
+            Move-Item "$target.part" $target -Force
+        }
+        $hash = (Get-FileHash $target -Algorithm SHA256).Hash
+        if ($hash -ne $GhostscriptFiles[$file]) {
+            Remove-Item $target -Force
+            throw "SHA256 von '$file' stimmt nicht (erwartet $($GhostscriptFiles[$file]), erhalten $hash). Datei wurde verworfen."
+        }
+    }
+
+    $sevenZip = Find-7Zip
+    $variants = @(
+        [pscustomobject]@{ Arch = 'x64'; Installer = "${GhostscriptTag}w64.exe"; Exe = 'gswin64c.exe'; Dll = 'gsdll64.dll'
+                           Crt = @('vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll') },
+        [pscustomobject]@{ Arch = 'x86'; Installer = "${GhostscriptTag}w32.exe"; Exe = 'gswin32c.exe'; Dll = 'gsdll32.dll'
+                           Crt = @('vcruntime140.dll', 'msvcp140.dll') }
+    )
+    foreach ($v in $variants) {
+        $outDir = Join-Path $gsRoot $v.Arch
+        if (Test-Path $outDir) { Remove-Item $outDir -Recurse -Force }
+        New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+
+        Invoke-Checked $sevenZip @('e', '-y', "-o$outDir", (Join-Path $cacheDir $v.Installer),
+                                   "bin\$($v.Exe)", "bin\$($v.Dll)") "Entpacken von $($v.Installer)"
+        foreach ($f in @($v.Exe, $v.Dll)) {
+            if (-not (Test-Path (Join-Path $outDir $f))) { throw "'$f' fehlt nach dem Entpacken von $($v.Installer)." }
+        }
+
+        $crtDir = Find-VCRedistCrt $v.Arch
+        foreach ($f in $v.Crt) { Copy-Item (Join-Path $crtDir $f) $outDir -Force }
+        Write-Host "    $($v.Arch): $($v.Exe), $($v.Dll), $($v.Crt -join ', ')" -ForegroundColor DarkGray
+    }
+
+    # Lizenztext (identisch in beiden Installern) und Herkunfts-/Quellcode-Hinweis
+    Invoke-Checked $sevenZip @('e', '-y', "-o$gsRoot", (Join-Path $cacheDir "${GhostscriptTag}w64.exe"), 'doc\COPYING') 'Entpacken von COPYING'
+    @"
+Ghostscript $GhostscriptVersion
+===================
+
+This folder contains the UNMODIFIED Ghostscript $GhostscriptVersion binaries
+(gswin64c.exe/gsdll64.dll or gswin32c.exe/gsdll32.dll) taken from the official
+Artifex Software Windows installers, plus the Microsoft Visual C++ runtime DLLs
+they need. miPDFconvert runs Ghostscript as a separate process.
+
+Copyright (C) Artifex Software, Inc. - https://www.ghostscript.com/
+License: GNU Affero General Public License v3 (see COPYING in this folder).
+
+Complete corresponding source code for exactly this version:
+  https://github.com/Mibuw/miPDFconvert/releases  (asset ghostscript-$GhostscriptVersion.tar.xz)
+  https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/tag/$GhostscriptTag
+"@ | Set-Content -Path (Join-Path $gsRoot 'README.txt') -Encoding ascii
 }
 
 function Get-SignTool {
@@ -270,8 +382,10 @@ foreach ($proj in $appProjects) {
 
 # ---------------------------------------------------------------------------
 #  3b. Optionale Code-Signatur der EIGENEN Binaries (vor dem Packen)
-#      Fremd-DLLs (log4net, Ghostscript.NET, System.*) sind bereits vom
-#      jeweiligen Hersteller signiert und werden nicht neu signiert.
+#      Fremd-DLLs (log4net, System.*, VC++-Runtime) sind bereits vom jeweiligen
+#      Hersteller signiert und werden nicht neu signiert. Die Ghostscript-
+#      Binaries stammen von Artifex und werden bewusst NICHT mit dem eigenen
+#      Zertifikat signiert.
 # ---------------------------------------------------------------------------
 if ($Sign) {
     Invoke-SignFiles @(
@@ -288,10 +402,11 @@ if ($Sign) {
 }
 
 # ---------------------------------------------------------------------------
-#  4. Inno Setup kompilieren
+#  4./5. Ghostscript bereitstellen und Inno Setup kompilieren
 # ---------------------------------------------------------------------------
 if (-not $SkipSetup) {
     Ensure-DriverFiles
+    Ensure-Ghostscript
     $iscc = Find-Iscc
     Write-Host "ISCC: $iscc" -ForegroundColor DarkGray
     Write-Step 'Kompiliere Inno Setup'

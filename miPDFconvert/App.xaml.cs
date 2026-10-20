@@ -788,14 +788,28 @@ namespace miPDFconvert
         }
 
         /// <summary>
-        /// Locates the installed Ghostscript console executable (gswin64c.exe / gswin32c.exe).
-        /// Scans both registry views (64- and 32-bit) and the GPL and Artifex products, derives
-        /// the bin directory from each registered GS_DLL and picks the highest version whose
-        /// console executable exists, preferring the 64-bit build. Because Ghostscript runs as a
-        /// separate process, its bitness is independent of this application's - either build works.
+        /// Locates the Ghostscript console executable (gswin64c.exe / gswin32c.exe).
+        /// The copy bundled by the installer under <c>&lt;app&gt;\gs\bin</c> always wins, so the
+        /// tested version is used regardless of what else is installed. Otherwise (e.g. when
+        /// running from a development build) both registry views (64- and 32-bit) and the GPL and
+        /// Artifex products are scanned, the bin directory is derived from each registered GS_DLL
+        /// and the highest version whose console executable exists is picked, preferring the
+        /// 64-bit build. Because Ghostscript runs as a separate process, its bitness is
+        /// independent of this application's - either build works.
         /// </summary>
         private static string FindGhostscriptExecutable()
         {
+            string bundledBinDir = Path.Combine(AppContext.BaseDirectory, "gs", "bin");
+            foreach (string exeName in new[] { "gswin64c.exe", "gswin32c.exe" })
+            {
+                string bundledExe = Path.Combine(bundledBinDir, exeName);
+                if (File.Exists(bundledExe))
+                {
+                    LOGGER.Info($"    Using bundled Ghostscript executable \"{bundledExe}\".");
+                    return bundledExe;
+                }
+            }
+
             var candidates = new List<(Version version, string exePath, bool is64)>();
 
             foreach (RegistryView view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
@@ -843,7 +857,8 @@ namespace miPDFconvert
 
             if (candidates.Count == 0)
                 throw new InvalidOperationException(
-                    "Ghostscript is not installed. Please install Ghostscript (32-bit or 64-bit) from https://www.ghostscript.com/releases/gsdnld.html.");
+                    $"Ghostscript not found: neither the bundled copy in \"{bundledBinDir}\" nor an installed Ghostscript. " +
+                    "Please reinstall miPDFconvert or install Ghostscript (32-bit or 64-bit) from https://www.ghostscript.com/releases/gsdnld.html.");
 
             // Highest version wins; on a tie prefer the 64-bit build.
             var best = candidates.OrderByDescending(c => c.version).ThenByDescending(c => c.is64).First();
