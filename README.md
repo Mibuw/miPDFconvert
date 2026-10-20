@@ -42,6 +42,8 @@ Ghostscript binaries (AGPL release by Artifex) in a private folder (`<install di
 so nothing has to be installed separately. The 64-bit build is used on x64/ARM64, the
 32-bit build elsewhere. If the bundled copy is missing (e.g. when running a development
 build), miPDFconvert falls back to a Ghostscript installed on the system (32- or 64-bit).
+No Visual C++ Redistributable is required either: the print monitor DLLs link the C runtime
+statically and Ghostscript ships with its runtime DLLs.
 
 ## Installation
 

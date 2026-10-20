@@ -9,7 +9,8 @@
 ;      {app}\gs mit - keine separate Ghostscript-Installation mehr noetig
 ;    * Legt die Druckertreiber-Dateien unter miMonitor\x86 und miMonitor\x64 ab
 ;    * Ruft SetupHelper.exe fuer die Treiber-Installation auf
-;    * Prueft die Voraussetzungen (VC++ Redistributable 14, .NET 8 Desktop Runtime)
+;    * Prueft die Voraussetzung .NET 8 Desktop Runtime (ein VC++ Redistributable
+;      ist nicht noetig: Monitor-DLLs statisch gelinkt, Ghostscript mit app-lokaler CRT)
 ;    * Per-Machine Installation, Vorgaengerversionen werden ersetzt
 ;
 ;  Build:  ISCC.exe miPDFconvert.iss
@@ -17,7 +18,7 @@
 ; ============================================================================
 
 #define MyAppName        "miPDFconvert"
-#define MyAppVersion     "1.1.0"
+#define MyAppVersion     "1.1.1"
 #define MyAppPublisher   "Wolfgang Mitterbucher"
 #define MyAppURL         "https://mitterbucher.com"
 ; UpgradeCode aus dem alten vdproj -> gleiche AppId sorgt fuer saubere Updates
@@ -32,9 +33,8 @@
 ; wird von build.ps1 (Ensure-Ghostscript) bereitgestellt
 #define GhostscriptDir   "..\build\ghostscript"
 
-; Downloadlinks fuer fehlende Voraussetzungen
-#define VCRedistUrl      "https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist#visual-studio-2015-2017-2019-and-2022"
-#define DotNetUrl        "https://dotnet.microsoft.com/download/dotnet/8.0/runtime"
+; Downloadlink fuer fehlende Voraussetzung
+#define DotNetUrl       "https://dotnet.microsoft.com/download/dotnet/8.0/runtime"
 
 [Setup]
 AppId={#MyAppId}
@@ -168,17 +168,6 @@ end;
 
 { ---- Pruefung der Voraussetzungen vor der Installation ---- }
 
-function VCRedistInstalled(): Boolean;
-begin
-  // VC++ 2015-2022 Redistributable - Laufzeit-DLL pruefen.
-  // Setup laeuft 32-bit, daher wird der Systemordner auf SysWOW64 umgeleitet (x86-Runtime).
-  Result := FileExists(ExpandConstant('{sys}\vcruntime140.dll'));
-  { Zusaetzlich ueber Registry absichern (x86-Eintrag des Redist). }
-  if not Result then
-    Result := RegKeyExists(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86') or
-              RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x86');
-end;
-
 function HasDesktopRuntime8(BaseDir: String): Boolean;
 var
   FindRec: TFindRec;
@@ -211,30 +200,11 @@ var
 begin
   Result := True;
 
-  { --- Visual C++ Redistributable 14 --- }
-  if not VCRedistInstalled() then
-  begin
-    { Unbeaufsichtigte Installation (z. B. winget: /VERYSILENT): keine Dialoge und
-      KEIN Abbruch - sonst schlaegt der Silent-Install fehl. Nur protokollieren;
-      die Laufzeitkomponente muss separat vorhanden sein bzw. als winget-Dependency
-      installiert werden. }
-    if WizardSilent() then
-      Log('VC++ Redistributable 14 nicht gefunden - Silent-Installation, wird fortgesetzt.')
-    else if MsgBox('Zur Ausfuehrung dieses Programms wird das Visual C++ Redistributable 14 ' +
-              '(Visual Studio 2015-2022) benoetigt.' + #13#10#13#10 +
-              'Moechten Sie jetzt die Downloadseite oeffnen? ' +
-              '(Die Installation wird danach abgebrochen, damit Sie die Komponente nachinstallieren koennen.)',
-              mbConfirmation, MB_YESNO) = IDYES then
-    begin
-      ShellExec('open', '{#VCRedistUrl}', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
-      Result := False;
-      Exit;
-    end;
-  end;
-
   { --- .NET 8 Desktop Runtime --- }
   if not DotNet8DesktopInstalled() then
   begin
+    { Unbeaufsichtigte Installation (z. B. winget: /VERYSILENT): keine Dialoge und
+      KEIN Abbruch - sonst schlaegt der Silent-Install fehl. Nur protokollieren. }
     if WizardSilent() then
       Log('.NET 8 Desktop Runtime nicht gefunden - Silent-Installation, wird fortgesetzt.')
     else if MsgBox('Zur Ausfuehrung dieses Programms wird die .NET 8 Desktop Runtime benoetigt.' + #13#10#13#10 +
