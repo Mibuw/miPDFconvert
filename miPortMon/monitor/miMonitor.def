@@ -1,4 +1,0 @@
-LIBRARY miMonitor
-
-EXPORTS
-	InitializePrintMonitor2

@@ -1,16 +1,13 @@
 ﻿// miPDFconvert - virtual PDF printer
 // Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)
 //
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or (at your
-// option) any later version. This program is distributed WITHOUT ANY WARRANTY.
-// See the GNU AGPL v3 (LICENSE file) for details and THIRD-PARTY-NOTICES.md
-// for the licenses of bundled components.
+// Licensed under the Apache License, Version 2.0 (see LICENSE).
 
 using log4net;
 using log4net.Config;
 using Microsoft.Win32;
+using MiPdf;
+using MiPdf.PostScript;
 using System.Configuration;
 using System.Diagnostics;
 using System.IO;
@@ -18,6 +15,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Windows;
+using System.Windows.Interop;
 
 namespace miPDFconvert
 {
@@ -30,8 +28,7 @@ namespace miPDFconvert
 
         private const string DOCUMENT_TARGET_KEY = "TARGET_APPLICATION";
         private const string CREATE_FILES_KEY = "CREATE_DOCUMENT_FILES";
-        private const string PDF_SETTINGS_KEY = "PDF_SETTINGS";
-        private const string DEFAULT_PDF_SETTINGS = "/printer";
+        private const int CONVERSION_TIMEOUT_SECONDS = 120;
         public void App_Startup(object sender, StartupEventArgs e)
         {
             // Bulletproof diagnostics: record startup and any unhandled crash to a plain text
@@ -60,7 +57,7 @@ namespace miPDFconvert
             CleanupOldTempPdfFiles();
 
             // Check if there is another miPDFconvert process running, if so, wait until it is
-            // closed. The wait is bounded: a single hung instance (unanswered dialog, Ghostscript
+            // closed. The wait is bounded: a single hung instance (unanswered dialog, a conversion
             // stuck on malformed PostScript) must not silently block every following print job
             // forever - after the timeout we continue and serve this job anyway.
             var instanceWait = Stopwatch.StartNew();
@@ -112,8 +109,13 @@ namespace miPDFconvert
                     return;
                 }
 
-                inputFileName = Path.GetFileName(psInputFilePath);
-                LOGGER.Info($"Got argument '{psInputFilePath}' as PostScript input file path...");
+                // The print monitor passes the document title separately (the spool file has a
+                // neutral name); it becomes the suggested file name of the PDF.
+                string title = GetValueFromCommandLineParameter(args, "-title");
+                inputFileName = String.IsNullOrWhiteSpace(title)
+                    ? Path.GetFileName(psInputFilePath)
+                    : SanitizeFileName(Path.GetFileNameWithoutExtension(title)) + ".ps";
+                LOGGER.Info($"Got argument '{psInputFilePath}' as PostScript input file path (document title '{title}')...");
             }
             else
             {
@@ -124,8 +126,7 @@ namespace miPDFconvert
             Boolean.TryParse(ConfigurationManager.AppSettings[CREATE_FILES_KEY], out bool createDocumentFiles);
             byte[]? pdf = GetPdfDocument(pdfInputFilePath, psInputFilePath, createDocumentFiles);
 
-            // The renamed spool file is consumed once the PDF exists - delete it so the spool
-            // directory does not grow unbounded (nobody else cleans it up).
+            // The spool file is consumed once the PDF exists - delete it right away.
             if (pdf != null && !String.IsNullOrEmpty(psInputFilePath))
             {
                 try
@@ -313,7 +314,9 @@ namespace miPDFconvert
         /// Creates a hidden, topmost window that is activated and can be used as an owner for
         /// dialogs (e.g. the SaveFileDialog). Because the application runs without a visible main
         /// window, dialogs would otherwise have no owner and could appear behind other applications.
-        /// Using a topmost owner forces the dialog into the foreground.
+        /// The print monitor starts miPDFconvert in the background, so a plain Activate() is
+        /// refused by Windows' foreground lock: the owner is forced into the foreground instead,
+        /// which gives the dialog the keyboard focus as well.
         /// </summary>
         private static Window CreateTopmostOwnerWindow()
         {
@@ -330,8 +333,35 @@ namespace miPDFconvert
             };
 
             ownerWindow.Show();
+            ForceForegroundWindow(new WindowInteropHelper(ownerWindow).Handle);
             ownerWindow.Activate();
             return ownerWindow;
+        }
+
+        /// <summary>
+        /// Brings a window to the foreground although this process is not the foreground process:
+        /// attaching to the input queue of the current foreground thread lets Windows accept the
+        /// SetForegroundWindow call.
+        /// </summary>
+        private static bool ForceForegroundWindow(IntPtr hWnd)
+        {
+            IntPtr foreground = GetForegroundWindow();
+            uint foregroundThread = GetWindowThreadProcessId(foreground, out _);
+            uint currentThread = GetCurrentThreadId();
+            bool attached = false;
+            if (foregroundThread != 0 && foregroundThread != currentThread)
+                attached = AttachThreadInput(currentThread, foregroundThread, true);
+
+            try
+            {
+                BringWindowToTop(hWnd);
+                return SetForegroundWindow(hWnd);
+            }
+            finally
+            {
+                if (attached)
+                    AttachThreadInput(currentThread, foregroundThread, false);
+            }
         }
 
         /// <summary>
@@ -467,26 +497,7 @@ namespace miPDFconvert
                 if (IsIconic(hWnd))
                     ShowWindow(hWnd, SW_RESTORE);
 
-                // Attach our input queue to the current foreground thread so Windows permits the
-                // foreground hand-off; skip if we are already the foreground thread.
-                IntPtr foreground = GetForegroundWindow();
-                uint foregroundThread = GetWindowThreadProcessId(foreground, out _);
-                uint currentThread = GetCurrentThreadId();
-                bool attached = false;
-                if (foregroundThread != 0 && foregroundThread != currentThread)
-                    attached = AttachThreadInput(currentThread, foregroundThread, true);
-
-                try
-                {
-                    BringWindowToTop(hWnd);
-                    SetForegroundWindow(hWnd);
-                }
-                finally
-                {
-                    if (attached)
-                        AttachThreadInput(currentThread, foregroundThread, false);
-                }
-
+                ForceForegroundWindow(hWnd);
                 LOGGER.Info($"Target window of process {process.Id} brought to the foreground.");
             }
             catch (Exception ex)
@@ -525,18 +536,15 @@ namespace miPDFconvert
 
             if (!String.IsNullOrEmpty(psInputFilePath))
             {
-                // FAST PATH: a real PostScript file exists on disk. Let Ghostscript read it
-                // directly instead of loading it into memory, decoding it into a string and
-                // feeding it back through StdIn in chunks. This avoids a large allocation, a
-                // potentially lossy byte->string conversion of binary PostScript, and the
-                // per-chunk Substring copies - and is the fastest way to hand data to gs.
+                // FAST PATH: a real PostScript file exists on disk - stream it straight into the
+                // converter instead of loading it into memory first.
                 LOGGER.Info($"Converting PostScript input file \"{psInputFilePath}\" directly...");
                 createdPdfBinary = ConvertPS2Pdf(psInputFilePath, null);
             }
             else
             {
                 // Console input stream (-ps mode): data only exists in the pipe, so we must
-                // buffer it and feed it to Ghostscript through StdIn.
+                // buffer it before converting it.
                 LOGGER.Info("Importing PostScript document from console input stream...");
                 byte[]? psBinary = GetPostScriptDocumentFromInputStream();
 
@@ -616,141 +624,60 @@ namespace miPDFconvert
         }
 
         /// <summary>
-        /// Converts a PostScript document to PDF by invoking the installed Ghostscript executable
-        /// as an external process. Exactly one of <paramref name="psFilePath"/> or
-        /// <paramref name="postscriptDocument"/> must be supplied.
-        ///
-        /// Running Ghostscript out-of-process (instead of loading gsdllXX.dll into this process)
-        /// makes the conversion independent of this application's bitness: a 32-bit process can
-        /// drive a 64-bit Ghostscript and vice versa, so whichever build the user installed works.
+        /// Converts a PostScript document to PDF with miPDFlib's managed PostScript interpreter
+        /// (miPDFlib.PostScript), in this process and without any external engine. Exactly one of
+        /// <paramref name="psFilePath"/> or <paramref name="postscriptDocument"/> must be supplied.
         /// </summary>
         private static byte[]? ConvertPS2Pdf(string? psFilePath, byte[]? postscriptDocument)
         {
-            string? tempPsFile = null;
-            string tempPdfFile = Path.Combine(Path.GetTempPath(), $"miPDFconvert_gs_{Guid.NewGuid():N}.pdf");
             try
             {
-                string inputPsPath;
+                var options = new PostScriptOptions
+                {
+                    // The printer driver states the page size and orientation itself; do not let
+                    // the converter guess an orientation from the text direction.
+                    AutoRotatePages = false,
+                    // A job that hangs must not block every following print job (see the bounded
+                    // instance wait in OnStartup).
+                    Timeout = TimeSpan.FromSeconds(CONVERSION_TIMEOUT_SECONDS)
+                };
+
+                var conversionTime = Stopwatch.StartNew();
+                PdfDocument document;
                 if (!String.IsNullOrEmpty(psFilePath))
                 {
-                    inputPsPath = psFilePath!;
+                    using FileStream psStream = File.OpenRead(psFilePath!);
+                    document = PostScriptConverter.ToPdf(psStream, options);
                 }
                 else
                 {
-                    // stdin mode: persist the raw bytes to a temp .ps so Ghostscript reads them
-                    // directly - no encoding guesswork, the binary PostScript is preserved exactly.
-                    tempPsFile = Path.Combine(Path.GetTempPath(), $"miPDFconvert_gs_{Guid.NewGuid():N}.ps");
-                    File.WriteAllBytes(tempPsFile, postscriptDocument!);
-                    inputPsPath = tempPsFile;
+                    document = PostScriptConverter.ToPdf(postscriptDocument!, options);
                 }
 
-                string gsExecutable = FindGhostscriptExecutable();
-
-                List<string> switches = BuildGhostscriptSwitches(tempPdfFile);
-                switches.Add("-f");
-                switches.Add(inputPsPath);
-
-                LOGGER.Info($"Converting PostScript to PDF via \"{gsExecutable}\" (switches: {String.Join(" ", switches)})...");
-
-                var psi = new ProcessStartInfo
+                using (document)
                 {
-                    FileName = gsExecutable,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                };
-                foreach (string s in switches)
-                    psi.ArgumentList.Add(s);
-
-                using (Process? gsProcess = Process.Start(psi))
-                {
-                    if (gsProcess == null)
-                    {
-                        LOGGER.Error($"Could not start Ghostscript process \"{gsExecutable}\".");
-                        return null;
-                    }
-
-                    // Read both streams asynchronously to avoid a pipe-buffer deadlock.
-                    Task<string> stdoutTask = gsProcess.StandardOutput.ReadToEndAsync();
-                    Task<string> stderrTask = gsProcess.StandardError.ReadToEndAsync();
-
-                    if (!gsProcess.WaitForExit(120000))
-                    {
-                        LOGGER.Error("Ghostscript did not finish within 120 s - terminating it.");
-                        try { gsProcess.Kill(true); } catch { }
-                        return null;
-                    }
-                    gsProcess.WaitForExit(); // ensure the async stdout/stderr readers have flushed
-
-                    string stdout = stdoutTask.GetAwaiter().GetResult();
-                    string stderr = stderrTask.GetAwaiter().GetResult();
-                    if (!String.IsNullOrWhiteSpace(stdout)) LOGGER.Debug($"Ghostscript output: {stdout.Trim()}");
-                    if (!String.IsNullOrWhiteSpace(stderr)) LOGGER.Debug($"Ghostscript messages: {stderr.Trim()}");
-
-                    if (gsProcess.ExitCode != 0)
-                    {
-                        LOGGER.Error($"Ghostscript exited with code {gsProcess.ExitCode}.");
-                        return null;
-                    }
+                    byte[] pdf = document.ToArray();
+                    LOGGER.Debug($"Conversion finished without errors ({document.Pages.Count} page(s), {conversionTime.ElapsedMilliseconds} ms).");
+                    return pdf;
                 }
-
-                if (!File.Exists(tempPdfFile))
-                {
-                    LOGGER.Error("Ghostscript did not produce an output PDF file.");
-                    return null;
-                }
-
-                byte[] pdf = File.ReadAllBytes(tempPdfFile);
-                LOGGER.Debug("Conversion finished without errors.");
-                return pdf;
+            }
+            catch (PostScriptException ex)
+            {
+                LOGGER.Error($"PostScript error \"{ex.ErrorName}\" (offending command: {ex.OffendingCommand}) when converting the document to PDF. Program output: {ex.Output}");
+                return null;
             }
             catch (Exception ex)
             {
                 LOGGER.Error("Exception when converting PostScript document to PDF format:", ex);
                 return null;
             }
-            finally
-            {
-                try { if (tempPsFile != null && File.Exists(tempPsFile)) File.Delete(tempPsFile); } catch { }
-                try { if (File.Exists(tempPdfFile)) File.Delete(tempPdfFile); } catch { }
-            }
         }
 
-        /// <summary>
-        /// Builds the Ghostscript switch list shared by both input paths.
-        /// The PDF quality preset is configurable via the <c>PDF_SETTINGS</c> app setting
-        /// (default <c>/printer</c>). Use <c>/prepress</c> for maximum quality/size,
-        /// <c>/ebook</c> or <c>/screen</c> for smaller/faster output.
-        /// </summary>
-        private static List<string> BuildGhostscriptSwitches(string outputPdfPath)
+        private static string SanitizeFileName(string name)
         {
-            string pdfSettings = ConfigurationManager.AppSettings[PDF_SETTINGS_KEY] ?? DEFAULT_PDF_SETTINGS;
-            if (String.IsNullOrWhiteSpace(pdfSettings))
-                pdfSettings = DEFAULT_PDF_SETTINGS;
-            pdfSettings = pdfSettings.Trim();
-            if (!pdfSettings.StartsWith("/"))
-                pdfSettings = "/" + pdfSettings;
-
-            LOGGER.Debug($"Using PDF quality preset \"{pdfSettings}\" (configurable via {PDF_SETTINGS_KEY}).");
-
-            return new List<string>
-            {
-                "-dCompatibilityLevel=1.4",
-                "-dSAFER",
-                "-dBATCH",
-                "-dNOPAUSE",
-                "-dNOPROMPT",
-                "-dPDFSETTINGS=" + pdfSettings,
-                "-dASCII85EncodePages=false",
-                // Performance / size: skip per-page rotation analysis and reuse identical images.
-                "-dAutoRotatePages=/None",
-                "-dDetectDuplicateImages=true",
-                // Use all available cores for any rasterization work.
-                "-dNumRenderingThreads=" + Environment.ProcessorCount,
-                "-sDEVICE=pdfwrite",
-                "-sOutputFile=" + outputPdfPath
-            };
+            foreach (char c in Path.GetInvalidFileNameChars())
+                name = name.Replace(c, '_');
+            return String.IsNullOrWhiteSpace(name) ? "document" : name.Trim();
         }
 
         private static bool DoesCommandLineParameterExist(string[] args, string cmdArgNameLower)
@@ -785,85 +712,6 @@ namespace miPDFconvert
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Locates the Ghostscript console executable (gswin64c.exe / gswin32c.exe).
-        /// The copy bundled by the installer under <c>&lt;app&gt;\gs\bin</c> always wins, so the
-        /// tested version is used regardless of what else is installed. Otherwise (e.g. when
-        /// running from a development build) both registry views (64- and 32-bit) and the GPL and
-        /// Artifex products are scanned, the bin directory is derived from each registered GS_DLL
-        /// and the highest version whose console executable exists is picked, preferring the
-        /// 64-bit build. Because Ghostscript runs as a separate process, its bitness is
-        /// independent of this application's - either build works.
-        /// </summary>
-        private static string FindGhostscriptExecutable()
-        {
-            string bundledBinDir = Path.Combine(AppContext.BaseDirectory, "gs", "bin");
-            foreach (string exeName in new[] { "gswin64c.exe", "gswin32c.exe" })
-            {
-                string bundledExe = Path.Combine(bundledBinDir, exeName);
-                if (File.Exists(bundledExe))
-                {
-                    LOGGER.Info($"    Using bundled Ghostscript executable \"{bundledExe}\".");
-                    return bundledExe;
-                }
-            }
-
-            var candidates = new List<(Version version, string exePath, bool is64)>();
-
-            foreach (RegistryView view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
-            {
-                foreach (string product in new[] { "GPL Ghostscript", "Artifex Ghostscript" })
-                {
-                    try
-                    {
-                        using RegistryKey baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view);
-                        using RegistryKey? productKey = baseKey.OpenSubKey($@"SOFTWARE\{product}");
-                        if (productKey == null)
-                            continue;
-
-                        foreach (string versionName in productKey.GetSubKeyNames())
-                        {
-                            using RegistryKey? versionKey = productKey.OpenSubKey(versionName);
-                            string? dll = versionKey?.GetValue("GS_DLL") as string;
-                            string? binDir = String.IsNullOrEmpty(dll) ? null : Path.GetDirectoryName(dll);
-                            if (String.IsNullOrEmpty(binDir))
-                                continue;
-
-                            bool is64 = dll!.EndsWith("gsdll64.dll", StringComparison.OrdinalIgnoreCase);
-                            string[] exeNames = is64
-                                ? new[] { "gswin64c.exe", "gswin64.exe" }
-                                : new[] { "gswin32c.exe", "gswin32.exe" };
-
-                            foreach (string exeName in exeNames)
-                            {
-                                string exePath = Path.Combine(binDir, exeName);
-                                if (File.Exists(exePath))
-                                {
-                                    Version version = Version.TryParse(versionName, out Version? v) ? v : new Version(0, 0, 0);
-                                    candidates.Add((version, exePath, is64));
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        LOGGER.Debug($"    Could not read registry for \"{product}\" ({view}): {ex.Message}");
-                    }
-                }
-            }
-
-            if (candidates.Count == 0)
-                throw new InvalidOperationException(
-                    $"Ghostscript not found: neither the bundled copy in \"{bundledBinDir}\" nor an installed Ghostscript. " +
-                    "Please reinstall miPDFconvert or install Ghostscript (32-bit or 64-bit) from https://www.ghostscript.com/releases/gsdnld.html.");
-
-            // Highest version wins; on a tie prefer the 64-bit build.
-            var best = candidates.OrderByDescending(c => c.version).ThenByDescending(c => c.is64).First();
-            LOGGER.Info($"    Using Ghostscript executable \"{best.exePath}\" (version {best.version}).");
-            return best.exePath;
         }
 
     }

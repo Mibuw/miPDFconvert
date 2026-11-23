@@ -4,46 +4,43 @@
 
 # miPDFconvert
 
-[![GitHub release](https://img.shields.io/github/v/release/Mibuw/miPDFconvert)](https://github.com/Mibuw/miPDFconvert/releases/latest) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE) [![winget](https://img.shields.io/winget/v/Mibuw.miPDFconvert?label=winget)](https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mibuw/miPDFconvert) [![Chocolatey](https://img.shields.io/chocolatey/v/mipdfconvert?label=chocolatey)](https://community.chocolatey.org/packages/mipdfconvert)
+[![GitHub release](https://img.shields.io/github/v/release/Mibuw/miPDFconvert)](https://github.com/Mibuw/miPDFconvert/releases/latest) [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE) [![winget](https://img.shields.io/winget/v/Mibuw.miPDFconvert?label=winget)](https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mibuw/miPDFconvert) [![Chocolatey](https://img.shields.io/chocolatey/v/mipdfconvert?label=chocolatey)](https://community.chocolatey.org/packages/mipdfconvert)
 
 A virtual PDF printer for Windows. Install it and a new printer named **miPDFconvert**
 appears in Windows. Anything you print to it is converted to a PDF, which is then either
 handed to a configurable **target application** or offered to you through a *Save As* dialog.
 
-miPDFconvert is a derivative work of [clawPDF](https://github.com/clawsoftware/clawPDF)
-(and, through it, [PDFCreator](https://github.com/pdfforge/PDFCreator)) and uses the
-[mfilemon](https://sourceforge.net/projects/mfilemon/) print port monitor. It is released
-under the **GNU AGPL v3** — see [Licensing](#licensing).
+The PDF conversion uses [miPDFlib](https://github.com/Mibuw/miPDFlib), a PDF library with its
+own PostScript interpreter in managed code — no Ghostscript or other external engine is needed.
+miPDFconvert is released under the **Apache License 2.0** — see [Licensing](#licensing).
 
 ## How it works
 
 ```
-Application  ──►  "miPDFconvert" printer  ──►  print port monitor (miPortMon)
-                                                        │  PostScript spool file
-                                                        ▼
-                                          miPDFconvertBase (launcher)
-                                                        │
-                                                        ▼
-                                   miPDFconvert  ──►  Ghostscript  ──►  PDF
-                                                        │
-                        ┌───────────────────────────────┴───────────────────────────────┐
-                        ▼                                                               ▼
-        TARGET_APPLICATION is set:                                     TARGET_APPLICATION is empty:
-        the PDF is passed to that app                                  a "Save As" dialog is shown
+Application  ──►  "miPDFconvert" printer  ──►  print monitor (miPDFport.dll)
+                  (Microsoft PostScript class        │  writes the PostScript job to a file
+                   driver + miPDFconvert PPD)        │  only the printing user can read
+                                                     ▼
+                              miPDFconvert (started in the user's session)
+                                                     │  PostScript ──► PDF with miPDFlib
+                                                     │
+                        ┌────────────────────────────┴────────────────────────────┐
+                        ▼                                                         ▼
+        TARGET_APPLICATION is set:                               TARGET_APPLICATION is empty:
+        the PDF is passed to that app                            a "Save As" dialog is shown
 ```
+
+The printer embeds the fonts the application uses (the PPD lists no printer-resident fonts),
+so the PDF keeps the original fonts.
 
 ## Requirements
 
-- **Windows** 10/11 (x64 or ARM64).
-- **.NET 8 Desktop Runtime** (bundled/installed by the setup if missing).
+- **Windows** 10/11, 64-bit (x64 or ARM64).
+- **.NET 8 Desktop Runtime (x86)** — on an attended install the setup offers a download link
+  if it is missing; for silent installs, install it beforehand (the Chocolatey package does
+  this automatically).
 
-**Ghostscript is included** — since version 1.1.0 the installer ships the unmodified
-Ghostscript binaries (AGPL release by Artifex) in a private folder (`<install dir>\gs`),
-so nothing has to be installed separately. The 64-bit build is used on x64/ARM64, the
-32-bit build elsewhere. If the bundled copy is missing (e.g. when running a development
-build), miPDFconvert falls back to a Ghostscript installed on the system (32- or 64-bit).
-No Visual C++ Redistributable is required either: the print monitor DLLs link the C runtime
-statically and Ghostscript ships with its runtime DLLs.
+Nothing else is needed: no Ghostscript and no Visual C++ Redistributable.
 
 ## Installation
 
@@ -61,12 +58,12 @@ winget install mipdfconvert
 choco install mipdfconvert
 ```
 
-> Ghostscript is bundled — no separate installation needed. Newly submitted versions can take a few days to appear while they pass winget/Chocolatey moderation.
+> Newly submitted versions can take a few days to appear while they pass winget/Chocolatey moderation.
 
 ### Manual
 
-1. Run the installer `miPDFconvertSetup.exe`. During setup you can optionally choose a
-   **target application** that should automatically receive the generated PDF — the selected
+1. Run the installer `miPDFconvertSetup_<version>.exe`. During setup you can optionally choose
+   a **target application** that should automatically receive the generated PDF — the selected
    path is written to `TARGET_APPLICATION` in `miPDFconvert.dll.config` (leave it empty for a
    *Save As* dialog; changeable later).
 2. Print to the **miPDFconvert** printer from any application.
@@ -74,13 +71,12 @@ choco install mipdfconvert
 ## Configuration
 
 Settings live in `miPDFconvert.dll.config` (next to `miPDFconvert.exe` in the install
-directory), under `<appSettings>`:
+directory), under `<appSettings>`. An update keeps the existing file.
 
 | Key | Default | Description |
 |-----|---------|-------------|
 | **`TARGET_APPLICATION`** | *(empty)* | Path or name of an application that should **automatically receive the generated PDF** as a command-line argument. A relative path/bare file name is resolved against the install directory first. **Leave empty to get a *Save As* dialog instead.** |
-| `CREATE_DOCUMENT_FILES` | `false` | If `true`, keep the temporary PostScript file in `%TEMP%`. |
-| `PDF_SETTINGS` | `/printer` | Ghostscript quality preset: `/printer` (300 dpi, fast), `/prepress` (max quality/size), `/ebook` (150 dpi), `/screen` (72 dpi, smallest). |
+| `CREATE_DOCUMENT_FILES` | `false` | If `true`, keep the PostScript received on standard input (`-ps` mode) as `miPDFconvert.ps` in `%TEMP%`. |
 
 ### Defining a target application
 
@@ -99,40 +95,40 @@ The target application is brought to the foreground automatically (including sin
 apps such as browser-based viewers). If `TARGET_APPLICATION` is empty, miPDFconvert falls
 back to a *Save As* dialog.
 
+## Components
+
+| Folder | Component |
+|--------|-----------|
+| `miPDFconvert/` | The application (.NET 8, WPF): converts the print job with miPDFlib and hands the PDF on. |
+| `printer/miPDFport/` | Print monitor (C++): one port, `miPDFconvert:`; writes each job to `%ProgramData%\miPDFconvert\Spool` and starts miPDFconvert in the session of the printing user. |
+| `printer/PrinterSetup/` | `PrinterSetup.exe install <folder>` / `uninstall` (.NET Framework 4.7.2): installs the monitor, the printer driver and the printer. |
+| `printer/miPDFconvert.ppd` | PostScript printer description for the Microsoft PostScript class driver. |
+| `miPDFconvertSetup/` | Inno Setup script. |
+
+The Microsoft PostScript class driver (`pscript5`) is part of Windows; `PrinterSetup.exe`
+takes it from the driver store of the computer it runs on, so it is not part of this
+repository or the installer.
+
 ## Building from source
 
 Prerequisites:
 
-- **Visual Studio 2022** Build Tools with the **C++ (v145)** toolset (for the native print
-  monitor) and the **.NET desktop** workload. Override with `-PlatformToolset` if you have a
-  different version installed (e.g. `v143`/`v144`).
+- **Visual Studio** (2022 or later) with the **C++ (v145)** toolset for x64 and ARM64 (for
+  the print monitor) and the **.NET desktop** workload. Override the toolset with
+  `-PlatformToolset` if you have a different version installed (e.g. `v143`).
 - **.NET 8 SDK**.
 - **Inno Setup 6** — https://jrsoftware.org/isdl.php (for building the installer).
-- **7-Zip** — https://www.7-zip.org (to extract the Ghostscript binaries from the official
-  Artifex installers).
 
-Build everything (native DLLs → SetupHelper → apps → installer) with the included script:
+Build everything (print monitor → PrinterSetup → application → installer) with the included
+script:
 
 ```powershell
 .\build.ps1
 ```
 
-Useful switches: `-SkipNative` (skip the C++ projects), `-SkipSetup` (binaries only),
-`-PlatformToolset v144` (override the C++ toolset). The finished installer is written to
-`miPDFconvertSetup\Release\miPDFconvertSetup.exe`.
-
-> **Microsoft PostScript driver files:** The virtual printer uses Microsoft's inbox
-> PostScript class driver (`pscript5.dll`, `ps5ui.dll`, `pscript.hlp`, `pscript.ntf`).
-> These are **not** redistributed in this repository — `build.ps1` copies them from the
-> local Windows driver store into `lib\miMonitor\...` automatically before packaging the
-> installer. Only the project's own `ghostpdf.ppd` is tracked in the repository.
-
-> **Ghostscript:** `build.ps1` downloads the official Ghostscript Windows installers and the
-> source tarball for the version pinned at the top of the script, verifies their SHA256
-> hashes, and extracts only `gswinXXc.exe` + `gsdllXX.dll` (init files and fonts are compiled
-> in) plus the license into `build\ghostscript`. The app-local Visual C++ runtime DLLs are
-> taken from the Visual Studio `Redist` folder. To update Ghostscript (e.g. for a security
-> fix), change the version, tag and hashes in `build.ps1` and rebuild.
+Useful switches: `-SkipNative` (skip the print monitor), `-SkipSetup` (binaries only),
+`-PlatformToolset v143` (override the C++ toolset). The finished installer is written to
+`miPDFconvertSetup\Release\miPDFconvertSetup_<version>.exe`.
 
 ### Code signing (optional)
 
@@ -153,31 +149,23 @@ that must be configured locally (Inno Setup IDE → *Tools → Configure Sign To
 
 ## Logging
 
-A runtime log is written to `%ProgramData%\miPDFconvert\miPDFconvert.log`.
+Logs are written to `%ProgramData%\miPDFconvert\`: `miPDFconvert.log` (application),
+`miPDFport.log` (print monitor) and `PrinterSetup.log` (printer installation).
 
 ## Licensing
 
-miPDFconvert is licensed under the **GNU Affero General Public License v3** — see
-[`LICENSE`](LICENSE). Because it combines AGPL/GPL components, the complete corresponding
-source code must be made available to recipients (including users interacting with it over
-a network, per AGPL §13).
-
-Third-party components and their licenses are documented in
+miPDFconvert is licensed under the **Apache License, Version 2.0** — see [`LICENSE`](LICENSE)
+and [`NOTICE`](NOTICE). Third-party components and their licenses are documented in
 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md):
 
-- **mfilemon** (print port monitor) — GPL-2.0-or-later
-- **clawPDF / PDFCreator** (setup helper & architecture) — AGPL-3.0
-- **Ghostscript** (PDF engine, bundled unmodified, invoked as an external process) — AGPL-3.0
-- **Microsoft Visual C++ runtime** (app-local, for Ghostscript) — Microsoft redistributable
-- **log4net** — Apache-2.0
+- **miPDFlib / miPDFlib.PostScript** (PDF conversion) — Apache-2.0
+- **Apache log4net** (logging) — Apache-2.0
+- **System.Security.Cryptography.Pkcs** and related .NET libraries — MIT
 
-> **Note on Ghostscript:** The installer bundles the unmodified Ghostscript binaries under
-> the AGPL v3. The complete corresponding source code of the bundled version is attached to
-> every [GitHub release](https://github.com/Mibuw/miPDFconvert/releases)
-> (`ghostscript-<version>.tar.xz`) and is also available from
-> [Artifex](https://github.com/ArtifexSoftware/ghostpdl-downloads/releases).
-
-This project is not affiliated with or endorsed by clawSoft, pdfforge, or Artifex Software.
+> **Earlier versions:** Up to version 1.1.1, miPDFconvert was licensed under the GNU AGPL v3
+> and contained code derived from mfilemon and clawPDF/PDFCreator as well as Ghostscript.
+> Since version 1.2.0, none of these components is part of miPDFconvert; the earlier versions
+> remain available under their original licenses in the Git history.
 
 ---
 
@@ -187,4 +175,4 @@ This project is not affiliated with or endorsed by clawSoft, pdfforge, or Artife
 
 🌐 [www.mitterbucher.com](https://www.mitterbucher.com) · 💼 [LinkedIn](https://at.linkedin.com/in/wolfgangmitterbucher) · ✉️ office@mitterbucher.com
 
-**More open-source projects:** [miPDFconvert](https://github.com/Mibuw/miPDFconvert) · [miPDFvalidator](https://github.com/Mibuw/miPDFvalidator) · [miEUDIverifier](https://github.com/Mibuw/miEUDIverifier)
+**More open-source projects:** [miPDFconvert](https://github.com/Mibuw/miPDFconvert) · [miPDFlib](https://github.com/Mibuw/miPDFlib) · [miPDFvalidator](https://github.com/Mibuw/miPDFvalidator) · [miEUDIverifier](https://github.com/Mibuw/miEUDIverifier)

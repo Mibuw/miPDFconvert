@@ -1,0 +1,128 @@
+*PPD-Adobe: "4.3"
+*% miPDFconvert - virtual PDF printer
+*% Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)
+*% Licensed under the Apache License, Version 2.0 (see LICENSE).
+*%
+*% PostScript printer description for the Microsoft PostScript class driver (pscript5).
+*% It lists no resident printer fonts on purpose: the driver then embeds every TrueType
+*% font the application uses instead of substituting printer fonts, so the PDF keeps the
+*% original fonts. Imageable areas cover the whole sheet (a virtual printer has no margins).
+*FormatVersion: "4.3"
+*FileVersion: "1.0"
+*LanguageEncoding: ISOLatin1
+*LanguageVersion: English
+*Manufacturer: "miPDFconvert"
+*ModelName: "miPDFconvert"
+*ShortNickName: "miPDFconvert"
+*NickName: "miPDFconvert"
+*PCFileName: "MIPDFCNV.PPD"
+*Product: "(miPDFconvert)"
+*PSVersion: "(3010) 0"
+*LanguageLevel: "3"
+*ColorDevice: True
+*DefaultColorSpace: RGB
+*FileSystem: False
+*TTRasterizer: Type42
+*FreeVM: "67108864"
+*Throughput: "100"
+*LandscapeOrientation: Plus90
+*DefaultFont: Error
+
+*OpenUI *Resolution: PickOne
+*OrderDependency: 10 AnySetup *Resolution
+*DefaultResolution: 600dpi
+*Resolution 300dpi: "<< /HWResolution [300 300] >> setpagedevice"
+*Resolution 600dpi: "<< /HWResolution [600 600] >> setpagedevice"
+*Resolution 1200dpi: "<< /HWResolution [1200 1200] >> setpagedevice"
+*CloseUI: *Resolution
+
+*OpenUI *PageSize: PickOne
+*OrderDependency: 20 AnySetup *PageSize
+*DefaultPageSize: A4
+*PageSize A3: "<< /PageSize [842 1191] /ImagingBBox null >> setpagedevice"
+*PageSize A4: "<< /PageSize [595 842] /ImagingBBox null >> setpagedevice"
+*PageSize A5: "<< /PageSize [420 595] /ImagingBBox null >> setpagedevice"
+*PageSize A6: "<< /PageSize [298 420] /ImagingBBox null >> setpagedevice"
+*PageSize B4/JIS B4: "<< /PageSize [729 1032] /ImagingBBox null >> setpagedevice"
+*PageSize B5/JIS B5: "<< /PageSize [516 729] /ImagingBBox null >> setpagedevice"
+*PageSize Letter: "<< /PageSize [612 792] /ImagingBBox null >> setpagedevice"
+*PageSize Legal: "<< /PageSize [612 1008] /ImagingBBox null >> setpagedevice"
+*PageSize Tabloid: "<< /PageSize [792 1224] /ImagingBBox null >> setpagedevice"
+*PageSize Executive: "<< /PageSize [522 756] /ImagingBBox null >> setpagedevice"
+*PageSize Statement: "<< /PageSize [396 612] /ImagingBBox null >> setpagedevice"
+*PageSize EnvDL/Envelope DL: "<< /PageSize [312 624] /ImagingBBox null >> setpagedevice"
+*PageSize EnvC5/Envelope C5: "<< /PageSize [459 649] /ImagingBBox null >> setpagedevice"
+*PageSize EnvC4/Envelope C4: "<< /PageSize [649 918] /ImagingBBox null >> setpagedevice"
+*PageSize Env10/Envelope #10: "<< /PageSize [297 684] /ImagingBBox null >> setpagedevice"
+*CloseUI: *PageSize
+
+*OpenUI *PageRegion: PickOne
+*OrderDependency: 20 AnySetup *PageRegion
+*DefaultPageRegion: A4
+*PageRegion A3: "<< /PageSize [842 1191] /ImagingBBox null >> setpagedevice"
+*PageRegion A4: "<< /PageSize [595 842] /ImagingBBox null >> setpagedevice"
+*PageRegion A5: "<< /PageSize [420 595] /ImagingBBox null >> setpagedevice"
+*PageRegion A6: "<< /PageSize [298 420] /ImagingBBox null >> setpagedevice"
+*PageRegion B4/JIS B4: "<< /PageSize [729 1032] /ImagingBBox null >> setpagedevice"
+*PageRegion B5/JIS B5: "<< /PageSize [516 729] /ImagingBBox null >> setpagedevice"
+*PageRegion Letter: "<< /PageSize [612 792] /ImagingBBox null >> setpagedevice"
+*PageRegion Legal: "<< /PageSize [612 1008] /ImagingBBox null >> setpagedevice"
+*PageRegion Tabloid: "<< /PageSize [792 1224] /ImagingBBox null >> setpagedevice"
+*PageRegion Executive: "<< /PageSize [522 756] /ImagingBBox null >> setpagedevice"
+*PageRegion Statement: "<< /PageSize [396 612] /ImagingBBox null >> setpagedevice"
+*PageRegion EnvDL/Envelope DL: "<< /PageSize [312 624] /ImagingBBox null >> setpagedevice"
+*PageRegion EnvC5/Envelope C5: "<< /PageSize [459 649] /ImagingBBox null >> setpagedevice"
+*PageRegion EnvC4/Envelope C4: "<< /PageSize [649 918] /ImagingBBox null >> setpagedevice"
+*PageRegion Env10/Envelope #10: "<< /PageSize [297 684] /ImagingBBox null >> setpagedevice"
+*CloseUI: *PageRegion
+
+*DefaultImageableArea: A4
+*ImageableArea A3: "0 0 842 1191"
+*ImageableArea A4: "0 0 595 842"
+*ImageableArea A5: "0 0 420 595"
+*ImageableArea A6: "0 0 298 420"
+*ImageableArea B4: "0 0 729 1032"
+*ImageableArea B5: "0 0 516 729"
+*ImageableArea Letter: "0 0 612 792"
+*ImageableArea Legal: "0 0 612 1008"
+*ImageableArea Tabloid: "0 0 792 1224"
+*ImageableArea Executive: "0 0 522 756"
+*ImageableArea Statement: "0 0 396 612"
+*ImageableArea EnvDL: "0 0 312 624"
+*ImageableArea EnvC5: "0 0 459 649"
+*ImageableArea EnvC4: "0 0 649 918"
+*ImageableArea Env10: "0 0 297 684"
+
+*DefaultPaperDimension: A4
+*PaperDimension A3: "842 1191"
+*PaperDimension A4: "595 842"
+*PaperDimension A5: "420 595"
+*PaperDimension A6: "298 420"
+*PaperDimension B4: "729 1032"
+*PaperDimension B5: "516 729"
+*PaperDimension Letter: "612 792"
+*PaperDimension Legal: "612 1008"
+*PaperDimension Tabloid: "792 1224"
+*PaperDimension Executive: "522 756"
+*PaperDimension Statement: "396 612"
+*PaperDimension EnvDL: "312 624"
+*PaperDimension EnvC5: "459 649"
+*PaperDimension EnvC4: "649 918"
+*PaperDimension Env10: "297 684"
+
+*% Free page sizes up to about 2 x 2 metres
+*HWMargins: 0 0 0 0
+*MaxMediaWidth: "5670"
+*MaxMediaHeight: "5670"
+*NonUIOrderDependency: 20 AnySetup *CustomPageSize
+*CustomPageSize True: "
+pop pop pop 2 array astore
+<< /PageSize 3 -1 roll /ImagingBBox null >> setpagedevice"
+*End
+*ParamCustomPageSize Width: 1 points 1 5670
+*ParamCustomPageSize Height: 2 points 1 5670
+*ParamCustomPageSize WidthOffset: 3 points 0 0
+*ParamCustomPageSize HeightOffset: 4 points 0 0
+*ParamCustomPageSize Orientation: 5 int 0 0
+
+*% End of miPDFconvert.ppd

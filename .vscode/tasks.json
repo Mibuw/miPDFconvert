@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/miPDFconvertBase.sln",
+                "${workspaceFolder}/miPDFconvert.sln",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
@@ -19,7 +19,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/miPDFconvertBase.sln",
+                "${workspaceFolder}/miPDFconvert.sln",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
@@ -33,7 +33,7 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/miPDFconvertBase.sln"
+                "${workspaceFolder}/miPDFconvert.sln"
             ],
             "problemMatcher": "$msCompile"
         }

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- .NET Framework 4.7.2 is part of every supported Windows version: the printer can be
+       installed even before the .NET 8 runtime of miPDFconvert is present. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <!-- runs as a native 64-bit (or ARM64) process: it installs a monitor into System32 -->
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <BaseOutputPath>..\..\build\PrinterSetup</BaseOutputPath>
+    <Version>1.2.0</Version>
+    <Company>Wolfgang Mitterbucher</Company>
+    <Copyright>Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)</Copyright>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.ServiceProcess" />
+  </ItemGroup>
+
+</Project>

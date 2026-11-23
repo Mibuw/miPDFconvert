@@ -1,24 +1,20 @@
 ; ============================================================================
 ;  miPDFconvert - Inno Setup Script
-;  Ersetzt das bisherige Visual Studio Setup-Projekt (miPDFconvertSetup.vdproj)
+;  Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)
+;  Licensed under the Apache License, Version 2.0 (see LICENSE).
 ;
-;  Bildet alles nach, was das alte Setup geboten hat:
-;    * Installiert die komplette Publish-Ausgabe (miPDFconvert, miPDFconvertBase,
-;      SetupHelper, alle Abhaengigkeiten)
-;    * Liefert Ghostscript (AGPL, unveraenderte Artifex-Binaries) privat unter
-;      {app}\gs mit - keine separate Ghostscript-Installation mehr noetig
-;    * Legt die Druckertreiber-Dateien unter miMonitor\x86 und miMonitor\x64 ab
-;    * Ruft SetupHelper.exe fuer die Treiber-Installation auf
-;    * Prueft die Voraussetzung .NET 8 Desktop Runtime (ein VC++ Redistributable
-;      ist nicht noetig: Monitor-DLLs statisch gelinkt, Ghostscript mit app-lokaler CRT)
-;    * Per-Machine Installation, Vorgaengerversionen werden ersetzt
+;    * Installiert miPDFconvert (Publish-Ausgabe), den Druckermonitor
+;      miPDFport.dll (x64/ARM64), die PPD und PrinterSetup.exe
+;    * PrinterSetup.exe richtet den Drucker "miPDFconvert" ein; der PostScript-
+;      Klassentreiber (pscript5) kommt aus dem Windows des Zielrechners
+;    * Prueft die Voraussetzung .NET 8 Desktop Runtime
+;    * Per-Machine Installation, Vorgaengerversionen (auch 1.x) werden ersetzt
 ;
-;  Build:  ISCC.exe miPDFconvert.iss
-;          (Inno Setup 6, https://jrsoftware.org/isdl.php)
+;  Build:  ISCC.exe miPDFconvert.iss   (Inno Setup 6, https://jrsoftware.org/isdl.php)
 ; ============================================================================
 
 #define MyAppName        "miPDFconvert"
-#define MyAppVersion     "1.1.1"
+#define MyAppVersion     "1.2.0"
 #define MyAppPublisher   "Wolfgang Mitterbucher"
 #define MyAppURL         "https://mitterbucher.com"
 ; UpgradeCode aus dem alten vdproj -> gleiche AppId sorgt fuer saubere Updates
@@ -26,15 +22,11 @@
 
 ; Relative Quellpfade (dieses Skript liegt in ...\miPDFconvert\miPDFconvertSetup)
 #define PublishDir       "..\build\publish"
-#define LibWin32Dir      "..\lib\miMonitor\Win32"
-#define LibWin64Dir      "..\lib\miMonitor\Win64"
-#define PortMonWin32Dir  "..\miPortMon\miMonitor\Release\Win32"
-#define PortMonWin64Dir  "..\miPortMon\miMonitor\Release\x64"
-; wird von build.ps1 (Ensure-Ghostscript) bereitgestellt
-#define GhostscriptDir   "..\build\ghostscript"
+#define PrinterSetupDir  "..\build\PrinterSetup\Release\net472"
+#define MonitorDir       "..\printer\miPDFport\bin"
 
 ; Downloadlink fuer fehlende Voraussetzung
-#define DotNetUrl       "https://dotnet.microsoft.com/download/dotnet/8.0/runtime"
+#define DotNetUrl        "https://dotnet.microsoft.com/download/dotnet/8.0/runtime"
 
 [Setup]
 AppId={#MyAppId}
@@ -47,14 +39,14 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 AppContact={#MyAppURL}
 VersionInfoVersion={#MyAppVersion}
-; Installation nach "Program Files (x86)\miPDF\miPDFconvert"
-; (App ist x86 -> Setup laeuft im 32-Bit-Modus, {autopf} = Program Files (x86))
+; 64-Bit-Windows (x64 und ARM64)
+ArchitecturesAllowed=x64compatible
+; Installation nach "Program Files (x86)\miPDF\miPDFconvert" (die App ist x86)
 DefaultDirName={autopf32}\miPDF\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
-; Per-Machine Installation, Adminrechte werden benoetigt (Treiber + COM)
+; Per-Machine Installation, Adminrechte werden benoetigt (Druckertreiber)
 PrivilegesRequired=admin
-; Vorgaengerversion automatisch ersetzen (entspricht RemovePreviousVersions=TRUE)
 UninstallDisplayIcon={app}\miPDFconvert.ico
 UninstallDisplayName={#MyAppName}
 SetupIconFile=miPDFconvert.ico
@@ -63,7 +55,6 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 OutputDir=Release
 OutputBaseFilename=miPDFconvertSetup_{#MyAppVersion}
-; ARM64 wird (wie beim alten Setup) ueber die x64-Treiberdateien mitbedient
 
 ; Code-Signatur (nur wenn ISCC mit /DSIGN aufgerufen wird, z. B. build.ps1 -Sign).
 ; 'certum' ist ein in der Inno-Setup-IDE konfigurierter Sign-Tool-Name
@@ -78,66 +69,34 @@ SignedUninstaller=yes
 Name: "de"; MessagesFile: "compiler:Languages\German.isl"
 Name: "en"; MessagesFile: "compiler:Default.isl"
 
+[InstallDelete]
+; Reste von miPDFconvert 1.x (Ghostscript, alter Druckermonitor, Hilfsprogramme)
+Type: filesandordirs; Name: "{app}\gs"
+Type: filesandordirs; Name: "{app}\miMonitor"
+Type: files; Name: "{app}\SetupHelper.*"
+Type: files; Name: "{app}\miPDFconvertBase.*"
+Type: files; Name: "{app}\LICENSE.txt"
+
 [Files]
-; --- Hauptanwendung: komplette Publish-Ausgabe nach {app} ---
-;     enthaelt miPDFconvert.exe, miPDFconvertBase.exe, SetupHelper.exe,
-;     alle abhaengigen DLLs, configs und runtimes\
-Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: "*.pdb"
+; --- Anwendung: Publish-Ausgabe; eine vorhandene Konfiguration bleibt beim Update erhalten ---
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion; Excludes: "*.pdb,miPDFconvert.dll.config"
+Source: "{#PublishDir}\miPDFconvert.dll.config"; DestDir: "{app}"; Flags: onlyifdoesntexist
 
-; --- Ghostscript (privat nach {app}\gs\bin, inkl. app-lokaler VC++-Runtime) ---
-;     64-Bit-Build auf x64 und ARM64 (Windows 11 emuliert x64), sonst der
-;     32-Bit-Build (32-Bit-Windows, Windows 10 on ARM).
-Source: "{#GhostscriptDir}\x64\*"; DestDir: "{app}\gs\bin"; Check: IsX64Compatible; Flags: ignoreversion
-Source: "{#GhostscriptDir}\x86\*"; DestDir: "{app}\gs\bin"; Check: not IsX64Compatible; Flags: ignoreversion
-Source: "{#GhostscriptDir}\COPYING";    DestDir: "{app}\gs"; Flags: ignoreversion
-Source: "{#GhostscriptDir}\README.txt"; DestDir: "{app}\gs"; Flags: ignoreversion
+; --- Drucker: Einrichtung, PPD und Druckermonitor ---
+Source: "{#PrinterSetupDir}\PrinterSetup.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\printer\miPDFconvert.ppd"; DestDir: "{app}\printer"; Flags: ignoreversion
+Source: "{#MonitorDir}\x64\miPDFport.dll"; DestDir: "{app}\printer\x64"; Flags: ignoreversion
+Source: "{#MonitorDir}\ARM64\miPDFport.dll"; DestDir: "{app}\printer\ARM64"; Flags: ignoreversion
 
-; --- Lizenz und Drittanbieter-Hinweise ---
-Source: "..\LICENSE";                DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
-Source: "..\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
-
-; --- Programmsymbol ---
+; --- Programmsymbol (LICENSE, NOTICE und THIRD-PARTY-NOTICES.md sind in der Publish-Ausgabe) ---
 Source: "miPDFconvert.ico"; DestDir: "{app}"; Flags: ignoreversion
 
-; --- Druckertreiber-Dateien: 32 Bit nach {app}\miMonitor\x86 ---
-Source: "{#LibWin32Dir}\pscript5.dll";     DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
-Source: "{#LibWin32Dir}\pscript.ntf";      DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
-Source: "{#LibWin32Dir}\pscript.hlp";      DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
-Source: "{#LibWin32Dir}\ps5ui.dll";        DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
-Source: "{#LibWin32Dir}\ghostpdf.ppd";     DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
-Source: "{#PortMonWin32Dir}\miMonitor.dll";   DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
-Source: "{#PortMonWin32Dir}\miMonitorUI.dll"; DestDir: "{app}\miMonitor\x86"; Flags: ignoreversion
-
-; --- Druckertreiber-Dateien: 64 Bit nach {app}\miMonitor\x64 ---
-Source: "{#LibWin64Dir}\pscript5.dll";     DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
-Source: "{#LibWin64Dir}\pscript.ntf";      DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
-Source: "{#LibWin64Dir}\pscript.hlp";      DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
-Source: "{#LibWin64Dir}\ps5ui.dll";        DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
-Source: "{#LibWin64Dir}\ghostpdf.ppd";     DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
-Source: "{#PortMonWin64Dir}\miMonitor.dll";   DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
-Source: "{#PortMonWin64Dir}\miMonitorUI.dll"; DestDir: "{app}\miMonitor\x64"; Flags: ignoreversion
-
-[Run]
-; --- Reihenfolge wie im alten Setup (Install-Sequenz 1,2,3) ---
-; 1) evtl. vorhandenen Treiber zuerst entfernen
-Filename: "{app}\SetupHelper.exe"; Parameters: "/Driver=Remove"; \
-    StatusMsg: "Entferne vorhandenen Druckertreiber..."; Flags: runhidden waituntilterminated
-; 2) Druckertreiber installieren
-Filename: "{app}\SetupHelper.exe"; Parameters: "/Driver=Add"; \
-    StatusMsg: "Installiere Druckertreiber..."; Flags: runhidden waituntilterminated
-; 3) optionale Zielanwendung in die Konfiguration schreiben
-Filename: "{app}\SetupHelper.exe"; Parameters: "/TargetApp=""{code:GetTargetApp}"""; \
-    StatusMsg: "Konfiguriere Zielanwendung..."; Check: HasTargetApp; Flags: runhidden waituntilterminated
-
 [UninstallRun]
-; --- Deinstallation (vor dem Loeschen der Dateien) ---
-; Treiber entfernen
-Filename: "{app}\SetupHelper.exe"; Parameters: "/Driver=Remove"; \
-    RunOnceId: "RemoveDriver"; Flags: runhidden waituntilterminated
+Filename: "{app}\PrinterSetup.exe"; Parameters: "uninstall"; \
+    RunOnceId: "RemovePrinter"; Flags: runhidden waituntilterminated
 
 [UninstallDelete]
-; Treiberordner restlos aufraeumen (falls SetupHelper Restdateien hinterlaesst)
-Type: filesandordirs; Name: "{app}\miMonitor"
+Type: filesandordirs; Name: "{commonappdata}\miPDFconvert\Spool"
 
 [Code]
 
@@ -156,14 +115,65 @@ begin
   TargetPage.Add('Zielanwendung (optional):', 'Programme (*.exe)|*.exe|Alle Dateien (*.*)|*.*', '.exe');
 end;
 
-function GetTargetApp(Param: string): string;
+function XmlEscape(Value: String): String;
 begin
-  Result := Trim(TargetPage.Values[0]);
+  Result := Value;
+  StringChangeEx(Result, '&', '&amp;', True);
+  StringChangeEx(Result, '"', '&quot;', True);
+  StringChangeEx(Result, '<', '&lt;', True);
+  StringChangeEx(Result, '>', '&gt;', True);
 end;
 
-function HasTargetApp: Boolean;
+{ Schreibt die gewaehlte Zielanwendung nach TARGET_APPLICATION in miPDFconvert.dll.config. }
+procedure SetTargetApplication(Target: String);
+var
+  ConfigFile: String;
+  Lines: TArrayOfString;
+  I, KeyPos, ValueStart, ValueEnd: Integer;
+  Line: String;
 begin
-  Result := Trim(TargetPage.Values[0]) <> '';
+  ConfigFile := ExpandConstant('{app}\miPDFconvert.dll.config');
+  if not LoadStringsFromFile(ConfigFile, Lines) then
+    Exit;
+  for I := 0 to GetArrayLength(Lines) - 1 do
+  begin
+    Line := Lines[I];
+    KeyPos := Pos('key="TARGET_APPLICATION"', Line);
+    if KeyPos > 0 then
+    begin
+      ValueStart := KeyPos + Pos('value="', Copy(Line, KeyPos, MaxInt)) + Length('value="') - 1;
+      ValueEnd := ValueStart + Pos('"', Copy(Line, ValueStart, MaxInt)) - 1;
+      Lines[I] := Copy(Line, 1, ValueStart - 1) + XmlEscape(Target) + Copy(Line, ValueEnd, MaxInt);
+      SaveStringsToUTF8File(ConfigFile, Lines, False);
+      Exit;
+    end;
+  end;
+end;
+
+{ Richtet den Drucker ein; ein Fehler wird gemeldet (Details in PrinterSetup.log). }
+procedure InstallPrinter;
+var
+  ResultCode: Integer;
+begin
+  WizardForm.StatusLabel.Caption := 'Richte den Drucker miPDFconvert ein...';
+  if not Exec(ExpandConstant('{app}\PrinterSetup.exe'), 'install "' + ExpandConstant('{app}') + '"',
+              ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+  begin
+    Log('PrinterSetup install failed, exit code ' + IntToStr(ResultCode));
+    if not WizardSilent() then
+      MsgBox('Der Drucker miPDFconvert konnte nicht eingerichtet werden.' + #13#10 +
+             'Details: ' + ExpandConstant('{commonappdata}\miPDFconvert\PrinterSetup.log'), mbError, MB_OK);
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+  begin
+    InstallPrinter;
+    if Trim(TargetPage.Values[0]) <> '' then
+      SetTargetApplication(Trim(TargetPage.Values[0]));
+  end;
 end;
 
 { ---- Pruefung der Voraussetzungen vor der Installation ---- }
