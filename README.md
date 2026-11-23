@@ -77,6 +77,7 @@ directory), under `<appSettings>`. An update keeps the existing file.
 |-----|---------|-------------|
 | **`TARGET_APPLICATION`** | *(empty)* | Path or name of an application that should **automatically receive the generated PDF** as a command-line argument. A relative path/bare file name is resolved against the install directory first. **Leave empty to get a *Save As* dialog instead.** |
 | `CREATE_DOCUMENT_FILES` | `false` | If `true`, keep a copy of each print job as `miPDFconvert.ps` (the PostScript from the printer driver) and `miPDFconvert.pdf` in `%TEMP%` – useful to attach to an issue when a print job is converted wrongly. |
+| `LOG_FILE` | *(empty)* | Log file of the application, or a folder for `miPDFconvert.log`. Environment variables are allowed (e.g. `%LOCALAPPDATA%\miPDFconvert`); a relative path is taken from the install directory. **Empty: `%ProgramData%\miPDFconvert\miPDFconvert.log`.** |
 
 ### Defining a target application
 
@@ -164,9 +165,9 @@ Background: [PostScript to PDF without Ghostscript: lessons from a virtual print
 
 ## Logging
 
-Logs are written to `%ProgramData%\miPDFconvert\`: `miPDFconvert.log` (application; moved to
-`miPDFconvert.log.old` above 1 MB), `miPDFport.log` (print monitor) and `PrinterSetup.log`
-(printer installation).
+Logs are written to `%ProgramData%\miPDFconvert\`: `miPDFconvert.log` (application; another
+location can be set with `LOG_FILE`; moved to `<log file>.old` above 1 MB), `miPDFport.log`
+(print monitor) and `PrinterSetup.log` (printer installation).
 
 ## Licensing
 
