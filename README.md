@@ -147,6 +147,21 @@ installer and uninstaller are signed by Inno Setup through a sign tool named `ce
 that must be configured locally (Inno Setup IDE → *Tools → Configure Sign Tools*);
 `build.ps1 -Sign` activates it by passing `/DSIGN` to ISCC.
 
+## Roadmap
+
+Microsoft is phasing out third-party printer drivers, and in **Windows Protected Print Mode**
+(Windows 11 24H2 and later, enabled by policy) the spooler loads no third-party drivers and only
+Microsoft-signed modules – so a print monitor DLL like `miPDFport.dll` cannot run there.
+Background: [PostScript to PDF without Ghostscript: lessons from a virtual printer](https://www.mitterbucher.com/en/articles/postscript-to-pdf-without-ghostscript/).
+
+- **Virtual printer as an app (Windows 11 24H2 and later)** – a second edition of miPDFconvert
+  based on Microsoft's [Print Support App v4 virtual printer](https://learn.microsoft.com/en-us/windows-hardware/drivers/devapps/print-support-app-v4-design-guide)
+  architecture: packaged as MSIX, no own driver or print monitor, so it also works with
+  Protected Print Mode. PostScript as the input format (converted with miPDFlib) and PDF
+  passthrough for applications that print PDF themselves. Open question before committing to
+  the design: how to hand the PDF to a desktop target application from the app's background task.
+- **The classic printer stays** for Windows 10 and for systems without Protected Print Mode.
+
 ## Logging
 
 Logs are written to `%ProgramData%\miPDFconvert\`: `miPDFconvert.log` (application),
