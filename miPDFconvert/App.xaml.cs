@@ -12,7 +12,6 @@ using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Windows;
 using System.Windows.Interop;
@@ -83,21 +82,16 @@ namespace miPDFconvert
 
             if (args.Length == 0)
             {
-                LOGGER.Error("miPDFconvert started without any arguments! Use -ps followed by PostScript standard input stream or specify a PDF input file path as first argument.");
-                ShowErrorMessage("miPDFconvert started without any arguments! Use -ps followed by PostScript standard input stream or specify a PDF input file path as first argument.");
+                const string usage = "miPDFconvert started without any arguments! Use -psfile <PostScript file> [-title <document title>] or specify a PDF file path as argument.";
+                LOGGER.Error(usage);
+                ShowErrorMessage(usage);
                 Environment.Exit(1);
                 return;
             }
 
             LOGGER.Info($"miPDFconvert started with the following arguments: {String.Join(" ", args.Select(arg => arg.Contains(" ") ? $"\"{arg}\"" : arg))}.");
 
-            if (DoesCommandLineParameterExist(args, "-ps"))
-            {
-                LOGGER.Info("Awaiting PostScript document from standard input stream...");
-
-                inputFileName = GetValueFromCommandLineParameter(args, "-ps");
-            }
-            else if (DoesCommandLineParameterExist(args, "-psfile"))
+            if (DoesCommandLineParameterExist(args, "-psfile"))
             {
                 psInputFilePath = GetValueFromCommandLineParameter(args, "-psfile");
 
@@ -283,10 +277,8 @@ namespace miPDFconvert
                             BringProcessToForeground(process, foregroundOwner);
                             // IMPORTANT: exit explicitly. This is a WPF application without a
                             // main window, so without this call the dispatcher loop would keep
-                            // running forever, the process would never terminate and the calling
-                            // miPDFconvertBase launcher would block on its WaitForSingleObject
-                            // timeout (up to 180 s). Exiting here releases the print pipeline
-                            // immediately.
+                            // running forever, the process would never terminate and every
+                            // following print job would wait for it (see IsOldInstanceRunning).
                             Environment.Exit(0);
                         }
                     }
@@ -532,50 +524,25 @@ namespace miPDFconvert
                 }
             }
 
-            byte[]? createdPdfBinary;
-
-            if (!String.IsNullOrEmpty(psInputFilePath))
+            // Keep a copy of the print job for diagnostics (e.g. to attach it to an issue) if turned on
+            if (createDocumentFiles)
             {
-                // FAST PATH: a real PostScript file exists on disk - stream it straight into the
-                // converter instead of loading it into memory first.
-                LOGGER.Info($"Converting PostScript input file \"{psInputFilePath}\" directly...");
-                createdPdfBinary = ConvertPS2Pdf(psInputFilePath, null);
-            }
-            else
-            {
-                // Console input stream (-ps mode): data only exists in the pipe, so we must
-                // buffer it before converting it.
-                LOGGER.Info("Importing PostScript document from console input stream...");
-                byte[]? psBinary = GetPostScriptDocumentFromInputStream();
-
-                if (psBinary == null || psBinary.Length == 0)
+                string strPostScriptFilePath = String.Empty;
+                try
                 {
-                    ShowErrorMessage("No PostScript data was received from the standard input stream.");
-                    return null;
+                    strPostScriptFilePath = Path.Combine(Path.GetTempPath(), "miPDFconvert.ps");
+                    LOGGER.Debug($"Saving a copy of the PostScript document as \"{strPostScriptFilePath}\"...");
+                    File.Copy(psInputFilePath, strPostScriptFilePath, true);
                 }
-
-                LOGGER.Info($"Imported PostScript document has {psBinary.Length} bytes length.");
-
-                // Create document file for temporary testing purposes if turned on
-                if (createDocumentFiles)
+                catch (Exception ex)
                 {
-                    string strPostScriptFilePath = String.Empty;
-                    try
-                    {
-                        strPostScriptFilePath = Path.Combine(Path.GetTempPath(), "miPDFconvert.ps");
-                        LOGGER.Debug($"Saving PostScript document as \"{strPostScriptFilePath}\"...");
-                        File.WriteAllBytes(strPostScriptFilePath, psBinary);
-                        LOGGER.Debug("PDF document saved.");
-                    }
-                    catch (Exception ex)
-                    {
-                        LOGGER.Error($"Exception when saving PostScript document to \"{strPostScriptFilePath}\". Saving document is intended only for testing purposes and can be controlled by the {CREATE_FILES_KEY} property in the application configuration.", ex);
-                        // Continue without saving
-                    }
+                    LOGGER.Error($"Exception when saving PostScript document to \"{strPostScriptFilePath}\". Saving document is intended only for testing purposes and can be controlled by the {CREATE_FILES_KEY} property in the application configuration.", ex);
+                    // Continue without saving
                 }
-
-                createdPdfBinary = ConvertPS2Pdf(null, psBinary);
             }
+
+            LOGGER.Info($"Converting PostScript input file \"{psInputFilePath}\"...");
+            byte[]? createdPdfBinary = ConvertPS2Pdf(psInputFilePath);
 
             if ((createdPdfBinary?.Length ?? 0) == 0)
             {
@@ -588,47 +555,11 @@ namespace miPDFconvert
             return createdPdfBinary;
         }
 
-        private static byte[]? GetPostScriptDocumentFromInputStream()
-        {
-            try
-            {
-                Stream inputStream = Console.OpenStandardInput();
-                using (var outputStream = new MemoryStream())
-                {
-                    var buffer = new byte[0x1000];
-                    int nTotalBytes = 0;
-                    int nBufferBytes = 1;
-
-                    while (nBufferBytes > 0)
-                    {
-                        nBufferBytes = inputStream.Read(buffer, 0, buffer.Length);
-                        if (nBufferBytes > 0)
-                        {
-                            nTotalBytes += nBufferBytes;
-                            LOGGER.Debug($"    {nTotalBytes} bytes read from standard input stream.");
-                            outputStream.Write(buffer, 0, nBufferBytes);
-                        }
-                        else
-                            LOGGER.Debug($"    No (more) bytes read from standard input stream.");
-                    }
-
-                    outputStream.Close();
-                    return outputStream.ToArray();
-                }
-            }
-            catch (Exception ex)
-            {
-                LOGGER.Error($"Exception when reading from standard input stream:", ex);
-                return null;
-            }
-        }
-
         /// <summary>
-        /// Converts a PostScript document to PDF with miPDFlib's managed PostScript interpreter
-        /// (miPDFlib.PostScript), in this process and without any external engine. Exactly one of
-        /// <paramref name="psFilePath"/> or <paramref name="postscriptDocument"/> must be supplied.
+        /// Converts a PostScript file to PDF with miPDFlib's managed PostScript interpreter
+        /// (miPDFlib.PostScript), in this process and without any external engine.
         /// </summary>
-        private static byte[]? ConvertPS2Pdf(string? psFilePath, byte[]? postscriptDocument)
+        private static byte[]? ConvertPS2Pdf(string psFilePath)
         {
             try
             {
@@ -638,28 +569,16 @@ namespace miPDFconvert
                     // the converter guess an orientation from the text direction.
                     AutoRotatePages = false,
                     // A job that hangs must not block every following print job (see the bounded
-                    // instance wait in OnStartup).
+                    // instance wait in App_Startup).
                     Timeout = TimeSpan.FromSeconds(CONVERSION_TIMEOUT_SECONDS)
                 };
 
                 var conversionTime = Stopwatch.StartNew();
-                PdfDocument document;
-                if (!String.IsNullOrEmpty(psFilePath))
-                {
-                    using FileStream psStream = File.OpenRead(psFilePath!);
-                    document = PostScriptConverter.ToPdf(psStream, options);
-                }
-                else
-                {
-                    document = PostScriptConverter.ToPdf(postscriptDocument!, options);
-                }
-
-                using (document)
-                {
-                    byte[] pdf = document.ToArray();
-                    LOGGER.Debug($"Conversion finished without errors ({document.Pages.Count} page(s), {conversionTime.ElapsedMilliseconds} ms).");
-                    return pdf;
-                }
+                using FileStream psStream = File.OpenRead(psFilePath);
+                using PdfDocument document = PostScriptConverter.ToPdf(psStream, options);
+                byte[] pdf = document.ToArray();
+                LOGGER.Debug($"Conversion finished without errors ({document.Pages.Count} page(s), {conversionTime.ElapsedMilliseconds} ms).");
+                return pdf;
             }
             catch (PostScriptException ex)
             {
