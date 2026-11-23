@@ -11,7 +11,7 @@ It includes Apache log4net (Apache License, Version 2.0):
   This product includes software developed at
   The Apache Software Foundation (https://www.apache.org/).
 
-It includes miPDFlib and miPDFlib.PostScript 1.5.1 (Apache License, Version 2.0,
+It includes miPDFlib and miPDFlib.PostScript 1.5.2 (Apache License, Version 2.0,
 https://github.com/Mibuw/miPDFlib), whose NOTICE follows unchanged:
 
 --------------------------------------------------------------------------------

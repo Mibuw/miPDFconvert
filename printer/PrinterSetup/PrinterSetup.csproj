@@ -10,7 +10,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
     <BaseOutputPath>..\..\build\PrinterSetup</BaseOutputPath>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <Company>Wolfgang Mitterbucher</Company>
     <Copyright>Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)</Copyright>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>

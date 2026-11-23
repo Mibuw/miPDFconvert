@@ -11,7 +11,7 @@ its own license.
 
 ---
 
-## 1. miPDFlib and miPDFlib.PostScript 1.5.1
+## 1. miPDFlib and miPDFlib.PostScript 1.5.2
 
 PDF library and PostScript interpreter that convert the print jobs to PDF.
 
@@ -75,7 +75,7 @@ miPDFconvert.
 
 | Component | Version | License |
 |-----------|---------|---------|
-| miPDFlib, miPDFlib.PostScript | 1.5.1 | Apache-2.0 |
+| miPDFlib, miPDFlib.PostScript | 1.5.2 | Apache-2.0 |
 | Apache log4net | 3.3.2 | Apache-2.0 |
 | System.Security.Cryptography.Pkcs, System.Formats.Asn1, Microsoft.Bcl.Cryptography | 10.0.14 | MIT |
 | Microsoft PostScript class driver | (Windows) | not distributed |

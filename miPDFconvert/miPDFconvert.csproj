@@ -12,7 +12,7 @@
     <ApplicationIcon>miPDFconvert.ico</ApplicationIcon>
     <Copyright>Copyright (C) 2026 Wolfgang Mitterbucher (mitterbucher.com)</Copyright>
     <Company>Wolfgang Mitterbucher</Company>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
 
@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <PackageReference Include="log4net" Version="3.3.2" />
-    <PackageReference Include="miPDFlib.PostScript" Version="1.5.1" />
+    <PackageReference Include="miPDFlib.PostScript" Version="1.5.2" />
   </ItemGroup>
 
 </Project>
