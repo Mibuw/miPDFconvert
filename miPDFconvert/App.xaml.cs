@@ -3,8 +3,6 @@
 //
 // Licensed under the Apache License, Version 2.0 (see LICENSE).
 
-using log4net;
-using log4net.Config;
 using Microsoft.Win32;
 using MiPdf;
 using MiPdf.PostScript;
@@ -23,36 +21,21 @@ namespace miPDFconvert
     /// </summary>
     public partial class App : Application
     {
-        private static readonly ILog LOGGER = LogManager.GetLogger(typeof(App));
-
         private const string DOCUMENT_TARGET_KEY = "TARGET_APPLICATION";
         private const string CREATE_FILES_KEY = "CREATE_DOCUMENT_FILES";
         private const int CONVERSION_TIMEOUT_SECONDS = 120;
         public void App_Startup(object sender, StartupEventArgs e)
         {
-            // Bulletproof diagnostics: record startup and any unhandled crash to a plain text
-            // file that does NOT depend on log4net or the application configuration. If the
-            // deployed miPDFconvert.dll.config is malformed, log4net cannot initialize and the
-            // normal log stays empty - this trace still tells us the process started and why it
-            // failed. File: %ProgramData%\miPDFconvert\miPDFconvert.trace.log
+            // Record any unhandled crash; the log does not depend on the application configuration.
             AppDomain.CurrentDomain.UnhandledException += (s, ev) =>
-                WriteStartupTrace("UNHANDLED (AppDomain): " + ev.ExceptionObject);
+                Log.Error("Unhandled exception (AppDomain): " + ev.ExceptionObject);
             this.DispatcherUnhandledException += (s, ev) =>
             {
-                WriteStartupTrace("UNHANDLED (Dispatcher): " + ev.Exception);
+                Log.Error("Unhandled exception (Dispatcher):", ev.Exception);
                 ev.Handled = true;
                 Environment.Exit(1);
             };
-            WriteStartupTrace("App_Startup entered. Command line: " + Environment.CommandLine);
-
-            try
-            {
-                XmlConfigurator.Configure();
-            }
-            catch (Exception ex)
-            {
-                WriteStartupTrace("XmlConfigurator.Configure() failed (log4net logging will be unavailable): " + ex);
-            }
+            Log.Info($"miPDFconvert started by {Environment.UserName}.");
             CleanupOldTempPdfFiles();
 
             // Check if there is another miPDFconvert process running, if so, wait until it is
@@ -64,10 +47,10 @@ namespace miPDFconvert
             {
                 if (instanceWait.Elapsed.TotalSeconds > 60)
                 {
-                    LOGGER.Warn("An older miPDFconvert instance is still running after 60 s - continuing anyway.");
+                    Log.Warn("An older miPDFconvert instance is still running after 60 s - continuing anyway.");
                     break;
                 }
-                LOGGER.Debug("Waiting for old miPDFconvert processes to end...");
+                Log.Debug("Waiting for old miPDFconvert processes to end...");
                 Thread.Sleep(300);
             }
 
@@ -83,13 +66,13 @@ namespace miPDFconvert
             if (args.Length == 0)
             {
                 const string usage = "miPDFconvert started without any arguments! Use -psfile <PostScript file> [-title <document title>] or specify a PDF file path as argument.";
-                LOGGER.Error(usage);
+                Log.Error(usage);
                 ShowErrorMessage(usage);
                 Environment.Exit(1);
                 return;
             }
 
-            LOGGER.Info($"miPDFconvert started with the following arguments: {String.Join(" ", args.Select(arg => arg.Contains(" ") ? $"\"{arg}\"" : arg))}.");
+            Log.Info($"miPDFconvert started with the following arguments: {String.Join(" ", args.Select(arg => arg.Contains(" ") ? $"\"{arg}\"" : arg))}.");
 
             if (DoesCommandLineParameterExist(args, "-psfile"))
             {
@@ -97,7 +80,7 @@ namespace miPDFconvert
 
                 if (String.IsNullOrEmpty(psInputFilePath))
                 {
-                    LOGGER.Error($"miPDFconvert argument '-psfile' requires a PostScript file path as next argument!");
+                    Log.Error($"miPDFconvert argument '-psfile' requires a PostScript file path as next argument!");
                     ShowErrorMessage("miPDFconvert argument '-psfile' requires a PostScript file path as next argument!");
                     Environment.Exit(1);
                     return;
@@ -109,13 +92,13 @@ namespace miPDFconvert
                 inputFileName = String.IsNullOrWhiteSpace(title)
                     ? Path.GetFileName(psInputFilePath)
                     : SanitizeFileName(Path.GetFileNameWithoutExtension(title)) + ".ps";
-                LOGGER.Info($"Got argument '{psInputFilePath}' as PostScript input file path (document title '{title}')...");
+                Log.Info($"Got argument '{psInputFilePath}' as PostScript input file path (document title '{title}')...");
             }
             else
             {
                 pdfInputFilePath = String.Join(" ", args);
                 inputFileName = Path.GetFileName(pdfInputFilePath);
-                LOGGER.Info($"miPDFconvert started with command line argument '{pdfInputFilePath}'. Interpreting this as PDF input file path.");
+                Log.Info($"miPDFconvert started with command line argument '{pdfInputFilePath}'. Interpreting this as PDF input file path.");
             }
             Boolean.TryParse(ConfigurationManager.AppSettings[CREATE_FILES_KEY], out bool createDocumentFiles);
             byte[]? pdf = GetPdfDocument(pdfInputFilePath, psInputFilePath, createDocumentFiles);
@@ -126,45 +109,27 @@ namespace miPDFconvert
                 try
                 {
                     File.Delete(psInputFilePath);
-                    LOGGER.Debug($"Spool file \"{psInputFilePath}\" deleted.");
+                    Log.Debug($"Spool file \"{psInputFilePath}\" deleted.");
                 }
                 catch (Exception ex)
                 {
-                    LOGGER.Warn($"Could not delete spool file \"{psInputFilePath}\": {ex.Message}");
+                    Log.Warn($"Could not delete spool file \"{psInputFilePath}\": {ex.Message}");
                 }
             }
 
             ProcessInput(pdf, inputFileName, createDocumentFiles);
         }
 
-        /// <summary>
-        /// Appends a diagnostic line to %ProgramData%\miPDFconvert\miPDFconvert.trace.log.
-        /// Deliberately independent of log4net/ConfigurationManager so it also works when the
-        /// application configuration is broken. Never throws.
-        /// </summary>
-        private static void WriteStartupTrace(string message)
-        {
-            try
-            {
-                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "miPDFconvert");
-                Directory.CreateDirectory(dir);
-                File.AppendAllText(
-                    Path.Combine(dir, "miPDFconvert.trace.log"),
-                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{Environment.UserName}] {message}{Environment.NewLine}");
-            }
-            catch { /* diagnostics must never throw */ }
-        }
-
         private static void ProcessInput(byte[]? pdf, string fileName, bool createDocumentFiles)
         {
             if (pdf == null)
             {
-                LOGGER.Error("No PDF document available! Quitting application.");
+                Log.Error("No PDF document available! Quitting application.");
                 Environment.Exit(1);
                 return;
             }
 
-            LOGGER.Info($"Document name is '{fileName}'.");
+            Log.Info($"Document name is '{fileName}'.");
 
             // Create document file for temporary testing purposes if turned on
             if (createDocumentFiles)
@@ -173,20 +138,20 @@ namespace miPDFconvert
                 try
                 {
                     strPdfFilePath = Path.Combine(Path.GetTempPath(), "miPDFconvert.pdf");
-                    LOGGER.Debug($"Saving PDF document as \"{strPdfFilePath}\"...");
+                    Log.Debug($"Saving PDF document as \"{strPdfFilePath}\"...");
                     File.WriteAllBytes(strPdfFilePath, pdf);
-                    LOGGER.Debug("PDF document saved.");
+                    Log.Debug("PDF document saved.");
                 }
                 catch (Exception ex)
                 {
-                    LOGGER.Error($"Exception when saving PDF document to \"{strPdfFilePath}\". Saving document is intended only for testing purposes and can be controlled by the {CREATE_FILES_KEY} property in the application configuration.", ex);
+                    Log.Error($"Exception when saving PDF document to \"{strPdfFilePath}\". Saving document is intended only for testing purposes and can be controlled by the {CREATE_FILES_KEY} property in the application configuration.", ex);
                     // Continue without saving
                 }
             }
 
             // Map target application setting
             string? documentTarget = ConfigurationManager.AppSettings[DOCUMENT_TARGET_KEY]?.Trim();
-            LOGGER.Debug($"{DOCUMENT_TARGET_KEY} value \"{documentTarget}\" is configured in application configuration.");
+            Log.Debug($"{DOCUMENT_TARGET_KEY} value \"{documentTarget}\" is configured in application configuration.");
 
             // Now open created PDF in finally determined target application...
             try
@@ -218,12 +183,12 @@ namespace miPDFconvert
                     {
                         // Save the PDF document to the selected file
                         File.WriteAllBytes(saveFileDialog.FileName, pdf);
-                        LOGGER.Info($"PDF document saved to \"{saveFileDialog.FileName}\".");
+                        Log.Info($"PDF document saved to \"{saveFileDialog.FileName}\".");
                         Environment.Exit(0);
                     }
                     else
                     {
-                        LOGGER.Info("Save file dialog was cancelled by user. Exiting application.");
+                        Log.Info("Save file dialog was cancelled by user. Exiting application.");
                         Environment.Exit(0);
                     }
                 }
@@ -241,13 +206,13 @@ namespace miPDFconvert
                     }
 
                     // Try to start target application with PDF document as argument
-                    LOGGER.Info($"Passing PDF document to target application \"{resolvedTarget}\"...");
+                    Log.Info($"Passing PDF document to target application \"{resolvedTarget}\"...");
                     // Create temporary file for PDF document. The "miPDFconvert_" prefix lets
                     // CleanupOldTempPdfFiles identify and remove stale files on later runs
                     // (the file cannot be deleted right away - the target application reads it).
                     string tempPdfFilePath = Path.Combine(Path.GetTempPath(), $"miPDFconvert_{Guid.NewGuid():N}.pdf");
                     File.WriteAllBytes(tempPdfFilePath, pdf);
-                    LOGGER.Debug($"Temporary PDF file created as \"{tempPdfFilePath}\".");
+                    Log.Debug($"Temporary PDF file created as \"{tempPdfFilePath}\".");
                     try
                     {
                         ProcessStartInfo processStartInfo = new ProcessStartInfo
@@ -267,13 +232,13 @@ namespace miPDFconvert
                         if (process == null)
                         {
                             foregroundOwner.Close();
-                            LOGGER.Error($"Could not start target application \"{resolvedTarget}\"!");
+                            Log.Error($"Could not start target application \"{resolvedTarget}\"!");
                             ShowErrorMessage($"Could not start target application \"{resolvedTarget}\"!");
                             Environment.Exit(1);
                         }
                         else
                         {
-                            LOGGER.Info($"Target application \"{resolvedTarget}\" started successfully (PID {process.Id}).");
+                            Log.Info($"Target application \"{resolvedTarget}\" started successfully (PID {process.Id}).");
                             BringProcessToForeground(process, foregroundOwner);
                             // IMPORTANT: exit explicitly. This is a WPF application without a
                             // main window, so without this call the dispatcher loop would keep
@@ -284,7 +249,7 @@ namespace miPDFconvert
                     }
                     catch (Exception ex)
                     {
-                        LOGGER.Error($"Exception when starting target application \"{resolvedTarget}\": ", ex);
+                        Log.Error($"Exception when starting target application \"{resolvedTarget}\": ", ex);
                         ShowErrorMessage($"Exception when starting target application \"{resolvedTarget}\": {ex.Message}");
                         Environment.Exit(1);
                     }
@@ -292,13 +257,13 @@ namespace miPDFconvert
             }
             catch (Exception ex)
             {
-                LOGGER.Error($"Exception when passing PDF to target application: ", ex);
+                Log.Error($"Exception when passing PDF to target application: ", ex);
                 ShowErrorMessage($"Exception when passing PDF to target application: {ex.Message}");
                 Environment.Exit(1);
             }
             finally
             {
-                LOGGER.Info($"Exiting miPDFconvert application with code {Environment.ExitCode}.");
+                Log.Info($"Exiting miPDFconvert application with code {Environment.ExitCode}.");
             }
         }
 
@@ -391,7 +356,7 @@ namespace miPDFconvert
                         if (File.GetLastWriteTimeUtc(file) < DateTime.UtcNow.AddDays(-1))
                         {
                             File.Delete(file);
-                            LOGGER.Debug($"Old temporary PDF \"{file}\" deleted.");
+                            Log.Debug($"Old temporary PDF \"{file}\" deleted.");
                         }
                     }
                     catch { /* file may be in use - try again on a later run */ }
@@ -478,7 +443,7 @@ namespace miPDFconvert
                     // Broker / single-instance apps forwarded the request to another process and let
                     // ours exit, so there is no window to activate directly - the ASFW_ANY grant above
                     // is what lets the real owner pull itself to the front.
-                    LOGGER.Warn($"No main window found for target process {process.Id} (likely a single-instance/broker app); relied on ASFW_ANY fallback.");
+                    Log.Warn($"No main window found for target process {process.Id} (likely a single-instance/broker app); relied on ASFW_ANY fallback.");
                     return;
                 }
 
@@ -490,11 +455,11 @@ namespace miPDFconvert
                     ShowWindow(hWnd, SW_RESTORE);
 
                 ForceForegroundWindow(hWnd);
-                LOGGER.Info($"Target window of process {process.Id} brought to the foreground.");
+                Log.Info($"Target window of process {process.Id} brought to the foreground.");
             }
             catch (Exception ex)
             {
-                LOGGER.Warn($"Failed to bring target process {process.Id} to the foreground: {ex.Message}");
+                Log.Warn($"Failed to bring target process {process.Id} to the foreground: {ex.Message}");
             }
             finally
             {
@@ -511,14 +476,14 @@ namespace miPDFconvert
             {
                 try
                 {
-                    LOGGER.Info($"Reading PDF input document from \"{pdfFilePath}\"...");
+                    Log.Info($"Reading PDF input document from \"{pdfFilePath}\"...");
                     byte[] pdfBinary = File.ReadAllBytes(pdfFilePath);
-                    LOGGER.Info($"Input document successfully loaded with length of {pdfBinary.Length} bytes.");
+                    Log.Info($"Input document successfully loaded with length of {pdfBinary.Length} bytes.");
                     return pdfBinary;
                 }
                 catch (Exception ex)
                 {
-                    LOGGER.Error($"Exception when reading PDF input document from \"{pdfFilePath}\":", ex);
+                    Log.Error($"Exception when reading PDF input document from \"{pdfFilePath}\":", ex);
                     ShowErrorMessage($"Exception when reading PDF input document from \"{pdfFilePath}\": {ex.Message}");
                     return null;
                 }
@@ -531,27 +496,27 @@ namespace miPDFconvert
                 try
                 {
                     strPostScriptFilePath = Path.Combine(Path.GetTempPath(), "miPDFconvert.ps");
-                    LOGGER.Debug($"Saving a copy of the PostScript document as \"{strPostScriptFilePath}\"...");
+                    Log.Debug($"Saving a copy of the PostScript document as \"{strPostScriptFilePath}\"...");
                     File.Copy(psInputFilePath, strPostScriptFilePath, true);
                 }
                 catch (Exception ex)
                 {
-                    LOGGER.Error($"Exception when saving PostScript document to \"{strPostScriptFilePath}\". Saving document is intended only for testing purposes and can be controlled by the {CREATE_FILES_KEY} property in the application configuration.", ex);
+                    Log.Error($"Exception when saving PostScript document to \"{strPostScriptFilePath}\". Saving document is intended only for testing purposes and can be controlled by the {CREATE_FILES_KEY} property in the application configuration.", ex);
                     // Continue without saving
                 }
             }
 
-            LOGGER.Info($"Converting PostScript input file \"{psInputFilePath}\"...");
+            Log.Info($"Converting PostScript input file \"{psInputFilePath}\"...");
             byte[]? createdPdfBinary = ConvertPS2Pdf(psInputFilePath);
 
             if ((createdPdfBinary?.Length ?? 0) == 0)
             {
-                LOGGER.Error("No PDF document could be created from PostScript document!");
+                Log.Error("No PDF document could be created from PostScript document!");
                 ShowErrorMessage("No PDF document could be created from PostScript document!");
                 return null;
             }
 
-            LOGGER.Info($"PDF document created with length of {createdPdfBinary?.Length} bytes.");
+            Log.Info($"PDF document created with length of {createdPdfBinary?.Length} bytes.");
             return createdPdfBinary;
         }
 
@@ -577,17 +542,17 @@ namespace miPDFconvert
                 using FileStream psStream = File.OpenRead(psFilePath);
                 using PdfDocument document = PostScriptConverter.ToPdf(psStream, options);
                 byte[] pdf = document.ToArray();
-                LOGGER.Debug($"Conversion finished without errors ({document.Pages.Count} page(s), {conversionTime.ElapsedMilliseconds} ms).");
+                Log.Debug($"Conversion finished without errors ({document.Pages.Count} page(s), {conversionTime.ElapsedMilliseconds} ms).");
                 return pdf;
             }
             catch (PostScriptException ex)
             {
-                LOGGER.Error($"PostScript error \"{ex.ErrorName}\" (offending command: {ex.OffendingCommand}) when converting the document to PDF. Program output: {ex.Output}");
+                Log.Error($"PostScript error \"{ex.ErrorName}\" (offending command: {ex.OffendingCommand}) when converting the document to PDF. Program output: {ex.Output}");
                 return null;
             }
             catch (Exception ex)
             {
-                LOGGER.Error("Exception when converting PostScript document to PDF format:", ex);
+                Log.Error("Exception when converting PostScript document to PDF format:", ex);
                 return null;
             }
         }

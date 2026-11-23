@@ -192,7 +192,7 @@ Invoke-Checked 'dotnet' @('publish', $appProject, '-c', $Configuration, '-p:Publ
 
 # ---------------------------------------------------------------------------
 #  3b. Optionale Code-Signatur der EIGENEN Binaries (vor dem Packen).
-#      Fremd-DLLs (log4net, miPDFlib, System.*) werden nicht neu signiert.
+#      Fremd-DLLs (miPDFlib, System.*) werden nicht neu signiert.
 # ---------------------------------------------------------------------------
 if ($Sign) {
     Invoke-SignFiles @(

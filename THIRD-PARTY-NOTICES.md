@@ -20,13 +20,7 @@ PDF library and PostScript interpreter that convert the print jobs to PDF.
 - **License: Apache License, Version 2.0.** Its NOTICE (including the notices of the
   material it contains) is reproduced in [`NOTICE`](NOTICE).
 
-## 2. Apache log4net 3.3.2
-
-- Copyright 2004-2025 The Apache Software Foundation
-- Home: <https://logging.apache.org/log4net/>
-- **License: Apache License, Version 2.0.**
-
-## 3. .NET libraries used by miPDFlib
+## 2. .NET libraries used by miPDFlib
 
 `System.Security.Cryptography.Pkcs`, `System.Formats.Asn1` and `Microsoft.Bcl.Cryptography`
 (from the NuGet package System.Security.Cryptography.Pkcs 10.0.14).
@@ -61,7 +55,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## 4. Microsoft PostScript class driver (not distributed)
+## 3. Microsoft PostScript class driver (not distributed)
 
 The printer uses the Microsoft PostScript class driver (`pscript5.dll`, `ps5ui.dll`,
 `pscript.hlp`, `pscript.ntf`) that is part of Windows. These files are **not** included in
@@ -76,7 +70,6 @@ miPDFconvert.
 | Component | Version | License |
 |-----------|---------|---------|
 | miPDFlib, miPDFlib.PostScript | 1.5.2 | Apache-2.0 |
-| Apache log4net | 3.3.2 | Apache-2.0 |
 | System.Security.Cryptography.Pkcs, System.Formats.Asn1, Microsoft.Bcl.Cryptography | 10.0.14 | MIT |
 | Microsoft PostScript class driver | (Windows) | not distributed |
 

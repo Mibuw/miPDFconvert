@@ -164,8 +164,9 @@ Background: [PostScript to PDF without Ghostscript: lessons from a virtual print
 
 ## Logging
 
-Logs are written to `%ProgramData%\miPDFconvert\`: `miPDFconvert.log` (application),
-`miPDFport.log` (print monitor) and `PrinterSetup.log` (printer installation).
+Logs are written to `%ProgramData%\miPDFconvert\`: `miPDFconvert.log` (application; moved to
+`miPDFconvert.log.old` above 1 MB), `miPDFport.log` (print monitor) and `PrinterSetup.log`
+(printer installation).
 
 ## Licensing
 
@@ -174,7 +175,6 @@ and [`NOTICE`](NOTICE). Third-party components and their licenses are documented
 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md):
 
 - **miPDFlib / miPDFlib.PostScript** (PDF conversion) — Apache-2.0
-- **Apache log4net** (logging) — Apache-2.0
 - **System.Security.Cryptography.Pkcs** and related .NET libraries — MIT
 
 > **Earlier versions:** Up to version 1.1.1, miPDFconvert was licensed under the GNU AGPL v3

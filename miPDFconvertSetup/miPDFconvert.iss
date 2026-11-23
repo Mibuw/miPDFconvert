@@ -76,6 +76,12 @@ Type: filesandordirs; Name: "{app}\miMonitor"
 Type: files; Name: "{app}\SetupHelper.*"
 Type: files; Name: "{app}\miPDFconvertBase.*"
 Type: files; Name: "{app}\LICENSE.txt"
+; nicht mehr benoetigte Bibliotheken frueherer Versionen
+Type: files; Name: "{app}\log4net.dll"
+Type: files; Name: "{app}\System.Configuration.ConfigurationManager.dll"
+Type: files; Name: "{app}\System.Security.Cryptography.ProtectedData.dll"
+Type: files; Name: "{app}\System.Security.Permissions.dll"
+Type: filesandordirs; Name: "{app}\runtimes\win\lib\netstandard2.0"
 
 [Files]
 ; --- Anwendung: Publish-Ausgabe; eine vorhandene Konfiguration bleibt beim Update erhalten ---
